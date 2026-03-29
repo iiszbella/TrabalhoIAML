@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Chat{% endblock %}
+
+{% block content %}
+
+
+<div id="chat" class="border rounded p-3 mb-3 bg-black text-start" style="height:300px; overflow-y:auto;"></div>
+
+<div class="input-group">
+    <input type="text" id="mensagem" class="form-control" placeholder="Digite sua mensagem" onkeypress="if(event.key==='Enter') enviar()">
+    <button class="btn btn-light fw-bold" onclick="enviar()">Enviar</button>
+</div>
+
+<script>
+function enviar() {
+    let msg = document.getElementById("mensagem").value;
+
+    fetch("/chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({mensagem: msg})
+    })
+    .then(res => res.json())
+    .then(data => {
+        let chat = document.getElementById("chat");
+
+        chat.innerHTML += `<p><b>Você:</b> ${msg}</p>`;
+        chat.innerHTML += `<p class="text-danger"><b>Davy Jones:</b> ${data.resposta}</p>`;
+
+        chat.scrollTop = chat.scrollHeight;
+
+        document.getElementById("mensagem").value = "";
+    });
+}
+</script>
+
+{% endblock %}
