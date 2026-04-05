@@ -14,8 +14,9 @@ class ChatbotHorror(Chat):
         'fnaf', 'five', 'nights', 'freddy', 'animatrô', 'pizza',
         'amnesia', 'dark', 'descent', 'rebirth',
         'dead', 'space', 'necromorph',
-        'alan', 'wake',
-        'outlast', 'soma', 'bendy', 'quarry', 'until', 'dawn',
+        'dbd', 'assassino', 'sobrevivente', 'gerador', 'entidade', 'killer',
+        'alan', 'wake', 'camera', 'fantasma', 'assombração', 'espírito', 'maldição'
+        'outlast', 'soma', 'bendy', 'quarry', 'until dawn',
         'evil', 'within', 'dino', 'crisis', 'dinosauro',
         # Conceitos
         'horror', 'terror', 'jogo', 'game', 'medo', 'susto',
@@ -304,6 +305,19 @@ pares = [
             "O jogo combina puzzles com combate contra criaturas abomináveis.",
         ]
     ],
+    # FATAL FRAME
+    [
+        r"(?i)(fatal.*frame|camera.*obscura|fantasma|espírito|assombração|maldição.*japonesa)",
+        [
+            "Fatal Frame é terror onde sua única arma é uma câmera 📸",
+            "Você enfrenta espíritos vingativos usando a Camera Obscura.",
+            "Aqui, fugir não basta — você precisa encarar o fantasma de frente.",
+            "Quanto mais perto do espírito, mais forte é o dano… e o medo também.",
+            "É inspirado em lendas urbanas e fantasmas do folclore japonês.",
+            "Não são monstros físicos — são almas presas entre o mundo dos vivos e mortos.",
+            "O silêncio e a atmosfera fazem tudo parecer ainda mais assustador.",
+        ]
+    ],
 
     # OUTLAST
     [
@@ -335,6 +349,20 @@ pares = [
             "Outlast: Whistleblower é o DLC prequel de Outlast original! 😱",
             "Você descobre como tudo começou no Mount Massive Asylum.",
             "É ainda mais assustador que o jogo original!",
+        ]
+    ],
+    # DEAD BY DAYLIGHT
+    [
+        r"(?i)(dead.*by.*daylight|dbd|assassino|sobrevivente|gerador|entidade|killer|survivor)",
+        [
+            "Dead by Daylight é um jogo de terror onde você caça… ou é caçado 🩸",
+            "Um jogador é o assassino, os outros tentam sobreviver e fugir.",
+            "Os sobreviventes precisam consertar geradores para escapar.",
+            "O assassino serve a uma força sombria conhecida como Entidade.",
+            "Cada partida é um jogo de estratégia, tensão e puro desespero.",
+            "Esconder-se pode salvar sua vida… mas nem sempre por muito tempo.",
+            "Cada assassino tem poderes únicos — e todos são letais.",
+            "Aqui, cooperar é a única chance de sobrevivência.",
         ]
     ],
 
