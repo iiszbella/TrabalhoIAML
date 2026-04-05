@@ -5,7 +5,6 @@ Grupo:
 -Isabella Louzado da Silva
 -Marco Antonio Clemente Ribeiro Guedes
 -Miguel Oscar Silva Rodrigues de Souza
--Tiago dos Santos Macedo 
 
 
 Tema do ChatBot:
