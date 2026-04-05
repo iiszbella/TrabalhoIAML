@@ -3,31 +3,311 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Chatbot{% endblock %}</title>
+    <title>{% block title %}Chatbot de Terror{% endblock %}</title>
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #000000 0%, #1a0000 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Chat Container */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(10, 0, 0, 0.9);
+            border-radius: 20px;
+            border: 2px solid rgba(220, 20, 60, 0.5);
+            box-shadow: 0 8px 32px rgba(220, 20, 60, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Chat Messages */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        #chat::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #chat::-webkit-scrollbar-track {
+            background: rgba(220, 20, 60, 0.1);
+            border-radius: 10px;
+        }
+        
+        #chat::-webkit-scrollbar-thumb {
+            background: rgba(220, 20, 60, 0.6);
+            border-radius: 10px;
+        }
+        
+        #chat::-webkit-scrollbar-thumb:hover {
+            background: rgba(220, 20, 60, 0.9);
+        }
+        
+        .message {
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message.bot {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #cc1433 0%, #8b0a1a 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message.bot .message-bubble {
+            background: rgba(220, 20, 60, 0.15);
+            color: #e0e0e0;
+            border: 1px solid rgba(220, 20, 60, 0.6);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 4px;
+            margin-left: 4px;
+        }
+        
+        .message.user .message-label {
+            text-align: right;
+            margin-right: 4px;
+        }
+        
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px 12px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(220, 20, 60, 0.9);
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                opacity: 0.5;
+                transform: translateY(0);
+            }
+            30% {
+                opacity: 1;
+                transform: translateY(-10px);
+            }
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Input Container */
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid rgba(220, 20, 60, 0.3);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #mensagem {
+            background: rgba(220, 20, 60, 0.1);
+            border: 2px solid rgba(220, 20, 60, 0.4);
+            color: white;
+            border-radius: 20px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+        
+        #mensagem:focus {
+            background: rgba(220, 20, 60, 0.2);
+            border-color: rgba(220, 20, 60, 0.8);
+            box-shadow: 0 0 15px rgba(220, 20, 60, 0.5);
+            outline: none;
+        }
+        
+        #mensagem::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .btn-send {
+            background: linear-gradient(135deg, #cc1433 0%, #8b0a1a 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 28px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(220, 20, 60, 0.5);
+        }
+        
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 20, 60, 0.7);
+            background: linear-gradient(135deg, #ff1a47 0%, #b80025 100%);
+        }
+        
+        .btn-send:active {
+            transform: translateY(0);
+        }
+        
+        .btn-send:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Header */
+        header {
+            padding: 20px;
+            border-bottom: 2px solid rgba(220, 20, 60, 0.3);
+        }
+        
+        .header-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff1a47 0%, #cc1433 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+        }
+        
+        /* Footer */
+        footer {
+            padding: 20px;
+            border-top: 2px solid rgba(220, 20, 60, 0.3);
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* Main Container */
+        .main-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .message-bubble {
+                max-width: 85%;
+                font-size: 0.9rem;
+            }
+            
+            .header-title {
+                font-size: 1.4rem;
+            }
+            
+            .input-container {
+                padding: 15px;
+            }
+            
+            .btn-send {
+                padding: 10px 20px;
+                font-size: 0.85rem;
+            }
+            
+            #mensagem {
+                padding: 10px 14px;
+            }
+        }
+        
+        /* Acessibilidade */
+        .btn-send:focus {
+            outline: 2px solid rgba(139, 0, 139, 0.8);
+            outline-offset: 2px;
+        }
+        
+        #mensagem:focus-visible {
+            outline: 2px solid rgba(139, 0, 139, 0.8);
+            outline-offset: 2px;
+        }
+    </style>
 </head>
 
-<body class="d-flex flex-column min-vh-100 text-center text-bg-dark">
+<body>
+    <div class="main-wrapper">
+        <header>
+            {% include 'header.html' %}
+        </header>
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+        <footer>
+            {% include 'footer.html' %}
+        </footer>
+    </div>
 
-<div class="cover-container d-flex w-100 p-3 mx-auto flex-column">
-
-    <header class="mb-auto">
-        {% include 'header.html' %}
-    </header>
-
-    <main class="px-3 flex-fill">
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer class="mt-auto text-white-50">
-        {% include 'footer.html' %}
-    </footer>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

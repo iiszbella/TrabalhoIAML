@@ -1,40 +1,136 @@
 {% extends 'base.html' %}
 
-{% block title %}Chat{% endblock %}
+{% block title %}Chat - Chatbot de Terror{% endblock %}
 
 {% block content %}
 
-
-<div id="chat" class="border rounded p-3 mb-3 bg-black text-start" style="height:300px; overflow-y:auto;"></div>
-
-<div class="input-group">
-    <input type="text" id="mensagem" class="form-control" placeholder="Digite sua mensagem" onkeypress="if(event.key==='Enter') enviar()">
-    <button class="btn btn-light fw-bold" onclick="enviar()">Enviar</button>
+<div class="chat-container" style="width: 100%; max-height: calc(100vh - 240px);">
+    <div id="chat" role="log" aria-live="polite" aria-label="Histórico de conversa"></div>
+    
+    <div class="input-container">
+        <input 
+            type="text" 
+            id="mensagem" 
+            class="flex-grow-1"
+            placeholder="Pergunte sobre jogos de terror..." 
+            onkeypress="if(event.key==='Enter' && !event.shiftKey) enviar()"
+            aria-label="Campo de entrada de mensagem"
+            autocomplete="off"
+        >
+        <button 
+            class="btn-send" 
+            onclick="enviar()"
+            id="btnEnviar"
+            aria-label="Enviar mensagem"
+        >
+            Enviar
+        </button>
+    </div>
 </div>
 
 <script>
-function enviar() {
-    let msg = document.getElementById("mensagem").value;
-
-    fetch("/chat", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({mensagem: msg})
-    })
-    .then(res => res.json())
-    .then(data => {
+    let enviando = false;
+    
+    function criarMensagem(texto, tipo) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${tipo}`;
+        
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'message-label';
+        labelDiv.textContent = tipo === 'user' ? 'Você' : '👻 Davy Jones';
+        
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+        bubbleDiv.innerHTML = texto.replace(/\n/g, '<br>');
+        bubbleDiv.setAttribute('role', 'article');
+        
+        messageDiv.appendChild(labelDiv);
+        messageDiv.appendChild(bubbleDiv);
+        
+        return messageDiv;
+    }
+    
+    function mostrarDigitando() {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot';
+        messageDiv.id = 'typing-indicator';
+        
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'message-label';
+        labelDiv.textContent = '👻 Davy Jones';
+        
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'typing-indicator';
+        typingDiv.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+        
+        messageDiv.appendChild(labelDiv);
+        messageDiv.appendChild(typingDiv);
+        
+        return messageDiv;
+    }
+    
+    function enviar() {
+        if (enviando) return;
+        
+        let msg = document.getElementById("mensagem").value.trim();
+        
+        if (!msg) {
+            document.getElementById("mensagem").focus();
+            return;
+        }
+        
+        enviando = true;
+        document.getElementById("btnEnviar").disabled = true;
+        document.getElementById("mensagem").disabled = true;
+        
         let chat = document.getElementById("chat");
-
-        chat.innerHTML += `<p><b>Você:</b> ${msg}</p>`;
-        chat.innerHTML += `<p class="text-danger"><b>Davy Jones:</b> ${data.resposta}</p>`;
-
+        
+        // Adicionar mensagem do usuário
+        chat.appendChild(criarMensagem(msg, 'user'));
+        
+        // Mostrar indicador de digitação
+        const typingDiv = mostrarDigitando();
+        chat.appendChild(typingDiv);
         chat.scrollTop = chat.scrollHeight;
-
-        document.getElementById("mensagem").value = "";
+        
+        // Enviar para o servidor
+        fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({mensagem: msg})
+        })
+        .then(res => res.json())
+        .then(data => {
+            // Remover indicador de digitação
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+            
+            // Adicionar resposta do bot
+            chat.appendChild(criarMensagem(data.resposta, 'bot'));
+            chat.scrollTop = chat.scrollHeight;
+        })
+        .catch(erro => {
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+            chat.appendChild(criarMensagem('❌ Desculpe, ocorreu um erro. Tente novamente.', 'bot'));
+            chat.scrollTop = chat.scrollHeight;
+            console.error('Erro:', erro);
+        })
+        .finally(() => {
+            document.getElementById("mensagem").value = "";
+            document.getElementById("mensagem").focus();
+            document.getElementById("btnEnviar").disabled = false;
+            document.getElementById("mensagem").disabled = false;
+            enviando = false;
+        });
+    }
+    
+    // Focar no input ao carregar
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById("mensagem").focus();
     });
-}
 </script>
 
 {% endblock %}

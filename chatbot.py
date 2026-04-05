@@ -1,196 +1,414 @@
+import re
 import random
-import nltk
-from nltk.chat.util import Chat, reflections
+from nltk.chat.util import Chat, reflections as nltk_reflections
+
+
+class ChatbotHorror(Chat):
+    """Classe especializada para chatbot de horror com matching case-insensitive"""
+    
+    # Palavras-chave que indicam uma entrada válida sobre horror
+    PALAVRAS_CHAVE = {
+        # Nomes de jogos
+        'resident', 'evil', 're2', 're3', 're4', 're7', 're8', 'resident evil',
+        'silent', 'hill', 'sh1', 'sh2', 'sh3', 'sh4', 'pyramid', 'head',
+        'fnaf', 'five', 'nights', 'freddy', 'animatrô', 'pizza',
+        'amnesia', 'dark', 'descent', 'rebirth',
+        'dead', 'space', 'necromorph',
+        'alan', 'wake',
+        'outlast', 'soma', 'bendy', 'quarry', 'until', 'dawn',
+        'evil', 'within', 'dino', 'crisis', 'dinosauro',
+        # Conceitos
+        'horror', 'terror', 'jogo', 'game', 'medo', 'susto',
+        'survival', 'psicológico', 'atmosfera', 'lore', 'história',
+        'jumpscare', 'recomenda', 'qual', 'como', 'melhor',
+        'ação', 'assustador', 'aterradora', 'perturbador',
+        # Saudações
+        'oi', 'olá', 'opa', 'fala', 'salve', 'hey', 'opa fala',
+        # Outros
+        'você', 'nome', 'estar', 'bem', 'medo'
+    }
+    
+    def respond(self, str):
+        """Override do respond() com validação de palavras-chave"""
+        str_lower = str.lower()
+        
+        # Primeiro, tenta encontrar um padrão que corresponda
+        for (pattern, responses) in self._pairs:
+            match = re.search(pattern, str_lower)
+            if match:
+                return random.choice(responses)
+        
+        # Se nenhum padrão corresponder, verifica se tem palavras-chave válidas
+        tem_palavras_chave = any(palavra in str_lower for palavra in self.PALAVRAS_CHAVE)
+        
+        if not tem_palavras_chave:
+            # Entrada completamente aleatória/sem contexto
+            respostas_invalidas = [
+                "Desculpa, não entendi! 😅 Escreva sobre algum jogo de horror.",
+                "Huh? 🤔 Não consegui entender. Tente falar sobre jogos de terror!",
+                "Desculpe, essa frase não faz sentido para mim. Quer falar sobre horror?",
+                "Que? 👻 Escreva algo relacionado a jogos de horror!"
+            ]
+            return random.choice(respostas_invalidas)
+        
+        # Tem palavras-chave mas não encontrou padrão específico
+        fallback = [
+            "Sobre qual jogo de horror você quer saber? Recomendo Resident Evil, Silent Hill, FNAF ou Amnesia!",
+            "Pode me contar mais? Qual é seu jogo de horror favorito?",
+            "Qual é seu tipo favorito de horror? Survival, psicológico ou ação?"
+        ]
+        return random.choice(fallback)
+
 
 pares = [
+    # Saudações e cumprimentos
     [
-        r"Oi|Olá|E aí",
+        r"(?i)(oi|olá|e aí|opa|fala|salve|oie)",
         [
-            "Olá!","Como posso ajudar você?", "Oi, como está?"
+            "Olá! Bem-vindo ao mundo do horror! 🎮",
+            "Como posso ajudar você com jogos de terror?", 
+            "Oi! Que jogo de horror você quer conhecer?",
+            "Bem-vindo! Pronto para alguns sustos? 👻"
         ],
     ],
+    # Nome do chatbot
     [
-        r"Qual é o seu nome?",
+        r"(?i)(qual.*nome|quem.*você|como.*chama|seu.*nome)",
         [
-            "Sou um chatbot simples.", "Você pode me chamar de Chatbot.", "Sou o ChatBot."
+            "Sou um chatbot especialista em horror! 👻", 
+            "Você pode me chamar de Davy Jones, o guardião dos mares sombrios do terror.",
+            "Sou o ChatBot Terror, seu guia pelos jogos mais assustadores!",
+            "Davy Jones aqui, especialista em games de horror 👻"
         ],
     ],
+    
+    # Como está
     [
-        r"Como você está?",
+        r"(?i)(como.*está|e você|tudo.*bem|como vai)",
         [
-            "Estou bem!", "Tudo certo por aqui."
+            "Estou bem! Pronto para falar sobre projetos que assustam! 😱", 
+            "Tudo certo por aqui no abismo digital...",
+            "Eternamente preso em um loop assustador, mas feliz em ajudar!",
+            "Preparado para explorar os medos mais profundos!"
         ]
     ],
+    
+    # GÊNEROS E CONCEITOS - Survival Horror
     [
-        r"(.*)\?",
-        [
-            "Desculpe, não tenho uma resposta específica para essa pergunta.", "Pode reformular a pergunta?"
-        ],
-    ],
-    #CONCEITOS GERAIS
-    [
-        r".*survival horror.*",
+        r"(?i)(survival.*horror|sobrevivência|recursos.*limitados|munição.*limitada)",
         [
             "Survival horror é um gênero focado em sobrevivência, recursos limitados e tensão constante.",
-            "Jogos como Resident Evil e Silent Hill são grandes exemplos de survival horror.",
+            "Jogos como Resident Evil e Silent Hill são grandes exemplos de survival horror com munição limitada.",
+            "No survival horror você não é um herói invencível, é apenas um mortal em perigo! 😰",
+            "Em survival horror, cada bala e item importa! Você precisa pensar estrategicamente para sobreviver.",
         ]
     ],
 
+    # Terror Psicológico
     [
-        r".*terror psicológico.*",
+        r"(?i)(terror.*psicológico|psicológico|medo.*mental|sanidade.*afetada)",
         [
             "Terror psicológico foca mais na mente do jogador do que em sustos diretos.",
             "Silent Hill é um dos maiores exemplos de terror psicológico nos games.",
+            "No terror psicológico, a verdadeira ameaça vem de dentro de você - seus medos manifestados.",
+            "Jogos como Amnesia exploram o terror psicológico ao máximo, criando uma atmosfera insuportável.",
         ]
     ],
 
+    # Perguntas sobre jogos de horror em geral
     [
-        r".*jogo.*terror.*",
+        r"(?i)(qual.*jogo|qual.*jogar|qual.*recomenda|recomenda|recomende|sugestão.*jogo)",
         [
-            "Jogos de terror podem ser de sobrevivência, psicológico ou ação.",
-            "Você prefere sustos diretos ou aquele medo que fica na cabeça? 😨"
+            "Se gosta de ação: Resident Evil ou Dead Space.",
+            "Se prefere psicológico: Silent Hill ou Amnesia.",
+            "Se quer sustos constantes: FNAF ou Outlast.",
+            "Se quer narrativa: Until Dawn ou The Quarry.",
+            "Se começando: Alan Wake é ótimo para iniciantes!",
+            "Para experiência cômica: Goat Simulator Waste of Space é bem criativo!",
         ]
     ],
 
-    #RESIDENT EVIL
+    # Gêneros de horror
     [
-        r".*resident evil.*",
+        r"(?i)(gênero|tipos.*horror|classificação|categoria|subgênero)",
         [
-            "Resident Evil é um dos maiores clássicos do survival horror.",
+            "Os principais gêneros são: Survival Horror, Terror Psicológico, Cosmic Horror e Jump Scare.",
+            "Alguns jogos focam em ação com horror, outros em puro psicológico...",
+            "Existem jogos de horror interativo onde suas escolhas definem o final!",
+            "Cosmic Horror explora criaturas e entidades cósmicas incompreensíveis.",
+        ]
+    ],
+
+    # RESIDENT EVIL
+    [
+        r"(?i)(resident.*evil|re[0-9]|re[0-8]|re7|re8|biohazard)",
+        [
+            "Resident Evil é um dos maiores clássicos do survival horror! 🧟",
             "A série Resident Evil mistura ação com terror e zumbis criados pela Umbrella Corporation.",
+            "RE4 é considerado uma obra-prima por revolucionar o gênero!",
+            "A Mansão Spencer de RE é assustadora demais! 😱",
+            "Resident Evil Village (RE8) traz Alcina Dimitrescu e seus filhos!",
+            "Do RE7 em diante, a série ganhou uma perspectiva de primeira pessoa mais imersiva.",
         ]
     ],
 
+    # Umbrella Corporation
     [
-        r".*umbrella.*",
+        r"(?i)(umbrella|t-virus|zumbi|criatura.*biológica|arma.*biológica)",
         [
-            "A Umbrella Corporation é a responsável pelo vírus que causa os surtos em Resident Evil.",
+            "A Umbrella Corporation é a responsável pelo vírus T que causa os surtos em Resident Evil.",
+            "A Umbrella criou não apenas o T-Virus, mas também armas biológicas muito piores!",
+            "Os experimentos da Umbrella geraram criaturas abomináveis e incontroláveis.",
+            "A queda da Umbrella criou os eventos de toda a série RE.",
         ]
     ],
 
-    #SILENT HILL
+    # SILENT HILL
     [
-        r".*silent hill.*",
+        r"(?i)(silent.*hill|sh[0-9]|sh2|sh3|niebla.*silenciosa)",
         [
-            "Silent Hill é conhecido pelo terror psicológico e atmosfera pesada.",
+            "Silent Hill é conhecido pelo terror psicológico e atmosfera pesada. 😭",
             "A cidade de Silent Hill reflete os medos internos dos personagens... perturbador 😰",
+            "Silent Hill 2 é considerado um dos melhores jogos de horror de todos os tempos!",
+            "Em Silent Hill você nunca sabe se está seguro - a própria cidade quer vê-lo sofrer.",
+            "As diferentes radiações de rádio em Silent Hill indicam o perigo próximo!",
         ]
     ],
 
+    # Pyramid Head
     [
-        r".*pyramid head.*",
+        r"(?i)(pyramid.*head|cabeceira|triângulo.*cabeça|executioner)",
         [
-            "Pyramid Head é um dos personagens mais icônicos de Silent Hill.",
+            "Pyramid Head é um dos personagens mais icônicos de Silent Hill! 🔺",
+            "Pyramid Head representa punição e culpa - uma manifestação dos medos psicológicos.",
+            "O Pyramid Head é praticamente unkillable... ele vai atrás de você implacavelmente.",
+            "A presença dele torna qualquer cena absolutamente aterradora.",
         ]
     ],
 
-    #ALAN WAKE
+    # ALAN WAKE
     [
-        r".*alan wake.*",
+        r"(?i)(alan.*wake|escritor.*sombrio|luz.*escuridão|sombra.*tinta)",
         [
             "Alan Wake mistura terror psicológico com ação e luz contra a escuridão.",
             "A história de Alan Wake envolve um escritor preso em um pesadelo sombrio.",
+            "Em Alan Wake, a luz é sua melhor defesa contra as sombras!",
+            "Alan Wake 2 expandiu muito a história e o mistério por trás do universo.",
+            "O jogo explora temas de loucura, narrativa e a blurred line entre realidade e ficção.",
         ]
     ],
 
-    #FNAF
+    # FIVE NIGHTS AT FREDDY'S
     [
-        r".*five nights.*|.*fnaf.*",
+        r"(?i)(five.*nights|fnaf|freddy|animatrô|pizza.*terror|bonnie|chica|foxy)",
         [
-            "Five Nights at Freddy's é um jogo de terror focado em sobrevivência contra animatrônicos.",
+            "Five Nights at Freddy's é um jogo de terror focado em sobrevivência contra animatrônicos. 🤖",
             "Você conseguiria sobreviver uma noite na pizzaria do Freddy? 😰",
+            "FNAF é conhecido por seus jump scares ASSUSTADORES!",
+            "Os animatrônicos em FNAF têm uma história trágica e perturbadora.",
+            "A série FNAF tem 9 jogos principais com uma lore complexa e fascinante!",
+            "Cada animatrônico tem seu próprio comportamento assustador.",
         ]
     ],
 
-    #AMNESIA
+    # AMNESIA
     [
-        r".*amnesia.*",
+        r"(?i)(amnesia|dark.*descent|fuga.*monstro|câmara.*água|sanidade.*mental)",
         [
-            "Amnesia é um jogo de terror psicológico onde você foge ao invés de lutar.",
+            "Amnesia é um jogo de terror psicológico onde você foge ao invés de lutar. 🏃",
             "Em Amnesia, encarar o monstro pode ser a pior escolha possível...",
+            "Amnesia: The Dark Descent é um clássico que criou o gênero de horror moderno!",
+            "Você não pode lutar em Amnesia - sua única opção é fugir e se esconder! 😱",
+            "A perda de sanidade em Amnesia torna tudo ainda mais assustador.",
+            "Amnesia: Rebirth traz novidades e é ainda mais perturbadora!",
         ]
     ],
 
-    #DEAD SPACE
+    # DEAD SPACE
     [
-        r".*dead space.*",
+        r"(?i)(dead.*space|necromorph|espaço.*horror|estação.*espacial|ficção.*científica)",
         [
-            "Dead Space mistura terror com ficção científica no espaço.",
+            "Dead Space mistura terror com ficção científica no espaço. 🚀😱",
             "Os necromorfos de Dead Space são extremamente assustadores 😨",
+            "Dead Space combina ação com horror em estações espaciais isoladas.",
+            "Você enfrenta criaturas biomecânicas horríveis no escuro do espaço.",
+            "O remake de Dead Space é absolutamente imersivo e aterradora!",
+            "Os sons alienígenas de Dead Space aumentam a tensão em cada momento.",
         ]
     ],
 
-    #DINO CRISIS
+    # DINO CRISIS
     [
-        r".*dino crisis.*",
+        r"(?i)(dino.*crisis|dinossauro|dino|criatura.*pré-histórica|réptil.*terror)",
         [
-            "Dino Crisis é como Resident Evil, mas com dinossauros.",
+            "Dino Crisis é como Resident Evil, mas com dinossauros 🦖",
+            "Em vez de zumbis, você enfrenta dinossauros geneticamente modificados!",
+            "A lógica é a mesma: Umbrella criando bioarmas que saem do controle.",
+            "Dinossauros são muito mais assustadores quando têm inteligência predatória!",
         ]
     ],
 
-    #THE EVIL WITHIN
+    # THE EVIL WITHIN
     [
-        r".*evil within.*",
+        r"(?i)(evil.*within|shinji.*mikami|criatura.*bizarra|mundo.*distorcido)",
         [
-            "The Evil Within traz um terror intenso com criaturas bizarras.",
+            "The Evil Within traz um terror intenso com criaturas bizarras. 😱",
+            "Dirigido por Shinji Mikami, criador de Resident Evil!",
+            "The Evil Within tem atmosfera distorcida e perturbadora.",
+            "As criaturas em TEW são definitivamente da lista de 'nunca vou dormir novamente'.",
+            "O segundo jogo expande a história de forma muito criativa.",
         ]
     ],
 
-    #UNTIL DAWN
+    # UNTIL DAWN
     [
-        r".*until dawn.*",
+        r"(?i)(until.*dawn|decisão|consequência|cabana.*isolada|narrativo.*horror)",
         [
-            "Until Dawn é um jogo onde suas escolhas afetam quem sobrevive.",
+            "Until Dawn é um jogo onde suas escolhas afetam quem sobrevive. 🎬",
+            "É quase como um filme interativo de horror!",
+            "Cada decisão importa - personagens podem morrer baseado em suas ações.",
+            "Com atores reais mocapeados, Until Dawn é muito imersivo.",
+            "A história gira em torno de amigos em uma cabana isolada... spoiler: é ruim!",
         ]
     ],
 
-    #THE QUARRY
+    # THE QUARRY
     [
-        r".*the quarry.*",
+        r"(?i)(quarry|acampamento.*verão|horror.*narrativo|filme.*interativo)",
         [
-            "The Quarry segue o estilo de Until Dawn, com decisões que mudam a história.",
+            "The Quarry segue o estilo de Until Dawn, com decisões que mudam a história. 🎮",
+            "É um dos melhores jogos narrative-horror dos últimos anos!",
+            "Você é um monitor em um acampamento de verão... e coisas ruins acontecem.",
+            "Cada escolha pode levar à morte ou sobrevivência dos personagens.",
         ]
     ],
 
-    #BENDY
+    # BENDY AND THE INK MACHINE
     [
-        r".*bendy.*",
+        r"(?i)(bendy|tinta.*máquina|cartoon.*horror|estúdio.*animação|desenho.*antigo)",
         [
-            "Bendy and the Ink Machine mistura terror com estilo de desenho antigo.",
+            "Bendy and the Ink Machine mistura terror com estilo de desenho antigo. 😈",
+            "É como entrar em um cartoon de horror dos anos 30!",
+            "A atmosfera e o design artístico são absolutamente únicos.",
+            "Você explora um estúdio de animação abandonado cheio de segredos sombrios.",
         ]
     ],
 
-    #ALONE IN THE DARK
+    # ALONE IN THE DARK
     [
-        r".*alone in the dark.*",
+        r"(?i)(alone.*dark|pioneiro.*horror|primeira.*pessoa.*horror|criatura.*abominável)",
         [
-            "Alone in the Dark é um dos pioneiros do survival horror.",
+            "Alone in the Dark é um dos pioneiros do survival horror. 👴",
+            "O jogo original de 1992 criou as bases para o gênero!",
+            "Você nunca está realmente seguro em Alone in the Dark.",
+            "O jogo combina puzzles com combate contra criaturas abomináveis.",
         ]
     ],
 
-    #RECOMENDAÇÃO
+    # OUTLAST
     [
-        r".*recomenda.*jogo.*",
+        r"(?i)(outlast|câmera.*noturna|hospital.*mental|fuga.*câmera|visão.*noturna)",
         [
-            "Se gosta de ação: Resident Evil.",
-            "Se prefere psicológico: Silent Hill.",
-            "Se quer sustos constantes: FNAF ou Outlast.",
+            "Outlast é um jogo de fuga onde você usa uma câmera com visão noturna. 📹",
+            "Você não pode lutar - sua câmera é sua única defesa!",
+            "O hospital psiquiátrico de Outlast é absolutamente ATERRADORA!",
+            "Os pacientes de Outlast são terrivelmente assustadores!",
+            "Outlast 2 expande a experiência de horror com novos locais igualmente assustadores.",
         ]
     ],
 
-    #MEDO
+    # SOMA
     [
-        r".*tenho medo.*",
+        r"(?i)(soma|subaquático|existência.*humana|consciência|filosofia.*horror)",
         [
-            "O medo faz parte da experiência... você encara mesmo assim? 👀",
+            "SOMA é um jogo de horror psicológico subaquático surreal. 🌊",
+            "Explora existência humana e consciência em um ambiente aterradora.",
+            "As criaturas em SOMA desafiam sua percepção de realidade.",
+            "É um dos jogos mais philosophicamente perturbadores que existem.",
+        ]
+    ],
+
+    # WHISTLEBLOWER (Outlast DLC)
+    [
+        r"(?i)(whistleblower|dlc.*outlast|prequel|mount.*massive)",
+        [
+            "Outlast: Whistleblower é o DLC prequel de Outlast original! 😱",
+            "Você descobre como tudo começou no Mount Massive Asylum.",
+            "É ainda mais assustador que o jogo original!",
+        ]
+    ],
+
+    # SENSAÇÕES E REAÇÕES
+    [
+        r"(?i)(tenho.*medo|assustado|medo.*demais|muito.*medo|tremendo)",
+        [
+            "O medo faz parte da experiência... você enfrenta mesmo assim? 👀",
+            "Que tal começar com algo menos assustador?",
+            "Se ficar muito assustado, você sempre pode diminuir o volume! 😅",
+            "O medo é a essência do gaming horror - é o atrativo!",
+        ]
+    ],
+
+    # ATMOSFERA E DESIGN
+    [
+        r"(?i)(atmosfera|design.*horror|gráfico|som.*jogo|iluminação|trilha.*sonora)",
+        [
+            "A atmosfera é tudo em um bom jogo de horror!",
+            "Som, iluminação e design de level criam a tensão perfeita.",
+            "Os melhores jogos de horror usam o silêncio tão bem quanto o barulho.",
+            "A falta de música às vezes é mais assustadora que qualquer trilha sonora!",
+        ]
+    ],
+
+    # HISTÓRIA E LORE
+    [
+        r"(?i)(história|lore|background|trama|enredo|narrativa|segredo)",
+        [
+            "As melhores histórias de horror revelam-se gradualmente.",
+            "Cada jogo de horror tem segredos esperando para serem descobertos!",
+            "A lore de FNAF é estranhamente complexa para um jogo sobre uma pizzaria!",
+            "Entender a lore complica ainda mais o horror!",
+            "Os jogos de horror moderno têm narrativas profundas e instigantes!",
+        ]
+    ],
+
+    # JUMPSCARE
+    [
+        r"(?i)(jumpscare|susto.*direto|scare|pular.*susto|salto.*medo)",
+        [
+            "Jumpscares são um mecanismo efetivo mas controverso no horror!",
+            "Alguns preferem jumpscare, outros acham barato!",
+            "O melhor é quando a atmosfera cria expectativa para o jumpscare!",
+            "Um bom jumpscare no momento certo é impactante demais!",
+        ]
+    ],
+
+    # CLÁSSICOS
+    [
+        r"(?i)(clássico|antigo.*jogo|retro.*horror|pioneiro|original)",
+        [
+            "Os clássicos de horror estabeleceram as bases para o que vemos hoje!",
+            "Resident Evil original e Silent Hill 1 são pioneiros inesquecíveis!",
+            "Jogos antigos de horror focavam em atmosfera, não em gráficos!",
+            "A limitação técnica de ontem criava mais medo que HD de hoje!",
+        ]
+    ],
+
+    # MULTIPLAYER
+    [
+        r"(?i)(multiplayer|cooperativo|multijogador|amigo.*jogo|jogar.*junto)",
+        [
+            "Horror em multiplayer adiciona nova dimensão ao medo!",
+            "Jogar em grupo pode ser mais divertido mas menos assustador!",
+            "Alguns jogos combinam horror com elementos cooperativos!",
         ]
     ],
 ]
 
+# Padrões fallback genéricos - removidos patterns muito genéricos
 pares.extend([
-    [r"(.+)",["Entendi. Diga-me mais.", "Pode me contar mais sobre isso?", "Interessante. Conte-me mais..."]],
-    [r"(.*)\?", ["Hmm... não tenho certeza sobre isso...", "Essa é difícil..."]],
-    [r"(.+)", ["Interessante... continue", "Conte mais..."]]
+    [r"(?i)obrigad|valeu|vlw|thanks|obg", ["De nada! Quer saber mais sobre horror? 👻", "Por nada! Continue explorando o terror! 😱"]],
+    [r"(?i)adeus|tchau|até.*logo|até.*mais|bye|sair", ["Até logo! Que seus pesadelos sejam épicos! 👻", "Voltaremos a conversar em breve... espero você!"]],
 ])
 
 reflections = {
@@ -204,13 +422,15 @@ reflections = {
     "eu estava": "você estava",
 }
 
-chatbot = Chat(pares, reflections)
+# Criar instância do chatbot com a classe especializada
+chatbot = ChatbotHorror(pares, reflections)
 
 def responder(mensagem):
+    """Função wrapper para responder mensagens"""
     return chatbot.respond(mensagem)
 
 
-#Usar o chatbot pelo terminal, sem Flask
+# Para uso em terminal (descomentado se necessário):
 '''
 while True:
     user_input = input("Você: ")
