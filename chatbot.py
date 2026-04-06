@@ -18,6 +18,8 @@ class ChatbotHorror(Chat):
         'alan', 'wake', 'camera', 'fantasma', 'assombração', 'espírito', 'maldição'
         'outlast', 'soma', 'bendy', 'quarry', 'until dawn',
         'evil', 'within', 'dino', 'crisis', 'dinosauro',
+        'haunting', 'cachorro', 'castelo', 'ps2',
+        'alien', 'isolation', 'xenomorfo', 'amanda',
         # Conceitos
         'horror', 'terror', 'jogo', 'game', 'medo', 'susto',
         'survival', 'psicológico', 'atmosfera', 'lore', 'história',
@@ -364,6 +366,28 @@ pares = [
             "Cada assassino tem poderes únicos — e todos são letais.",
             "Aqui, cooperar é a única chance de sobrevivência.",
         ]
+    ],
+    # HAUNTING GROUND
+    [
+        r"(?i)(haunting.*ground|fiona|cachorro|capcom.*ps2|terror de.*ps2|jogo.*haunting)",
+        [
+            "Haunting Ground é um terror psicológico onde você não pode lutar diretamente 😨",
+            "Em haunting ground o foco do jogo é fugir, se esconder e sobreviver.",
+            "Nesse game o pânico de Fiona influencia sua jogabilidade, dificultando a fuga.",
+            "É um terror mais psicológico do que baseado em sustos.",
+            "Haunting Ground é um classico do ps2, mas muito pouco conhecido.",
+        ]
+    ],
+    # ALIEN ISOLATION
+    [
+        r"(?i)(alien.*isolation|amanda.*ripley|xenomorfo|sevastopol|jogo do.*alien|terror.*alien)",
+       [
+            "Alien: Isolation é um terror de sobrevivência focado em tensão constante 👽",
+            "Nesse jogo principal inimigo é o Xenomorfo, que não pode ser derrotado diretamente.",
+            "O jogo se passa na estação Sevastopol, cheia de perigos e mistérios.",
+            "O alien aprende com seus movimentos, tornando cada partida diferente.",
+            "Em Alien Isolation o foco é se esconder, usar distrações e economizar recursos.",
+       ]
     ],
 
     # SENSAÇÕES E REAÇÕES
