@@ -70,62 +70,42 @@
     }
     
     function enviar() {
-        if (enviando) return;
-        
-        let msg = document.getElementById("mensagem").value.trim();
-        
-        if (!msg) {
-            document.getElementById("mensagem").focus();
-            return;
-        }
-        
-        enviando = true;
-        document.getElementById("btnEnviar").disabled = true;
-        document.getElementById("mensagem").disabled = true;
-        
-        let chat = document.getElementById("chat");
-        
-        // Adicionar mensagem do usuário
-        chat.appendChild(criarMensagem(msg, 'user'));
-        
-        // Mostrar indicador de digitação
-        const typingDiv = mostrarDigitando();
-        chat.appendChild(typingDiv);
+    if (enviando) return;
+
+    let input = document.getElementById("mensagem");
+    let msg = input.value.trim();
+
+    if (!msg) return;
+
+    enviando = true;
+
+    let chat = document.getElementById("chat");
+
+    chat.appendChild(criarMensagem(msg, 'user'));
+    chat.scrollTop = chat.scrollHeight;
+
+    input.value = "";
+    input.focus();
+
+    fetch("/chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({mensagem: msg})
+    })
+    .then(res => res.json())
+    .then(data => {
+        chat.appendChild(criarMensagem(data.resposta, 'bot'));
         chat.scrollTop = chat.scrollHeight;
-        
-        // Enviar para o servidor
-        fetch("/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({mensagem: msg})
-        })
-        .then(res => res.json())
-        .then(data => {
-            // Remover indicador de digitação
-            const typing = document.getElementById('typing-indicator');
-            if (typing) typing.remove();
-            
-            // Adicionar resposta do bot
-            chat.appendChild(criarMensagem(data.resposta, 'bot'));
-            chat.scrollTop = chat.scrollHeight;
-        })
-        .catch(erro => {
-            const typing = document.getElementById('typing-indicator');
-            if (typing) typing.remove();
-            chat.appendChild(criarMensagem('❌ Desculpe, ocorreu um erro. Tente novamente.', 'bot'));
-            chat.scrollTop = chat.scrollHeight;
-            console.error('Erro:', erro);
-        })
-        .finally(() => {
-            document.getElementById("mensagem").value = "";
-            document.getElementById("mensagem").focus();
-            document.getElementById("btnEnviar").disabled = false;
-            document.getElementById("mensagem").disabled = false;
-            enviando = false;
-        });
-    }
+    })
+    .catch(() => {
+        chat.appendChild(criarMensagem('Erro ao enviar mensagem', 'bot'));
+    })
+    .finally(() => {
+        enviando = false;
+    });
+}
     
     // Focar no input ao carregar
     document.addEventListener('DOMContentLoaded', () => {
