@@ -1,502 +1,304 @@
-"""
-hooks.py - Sistema de conectivos, saudações e tratamento de palavras para o chatbot
-Gerencia fluxo de conversação após respostas positivas/negativas e fuzzy matching
-"""
+"""Banco de dados de jogos de horror e constantes do chatbot."""
 
-from difflib import SequenceMatcher
-import re
-
-# ================================================================
-# SAUDAÇÕES INICIAIS
-# ================================================================
-SAUDACOES_INICIAIS = [
-    "Bem-vindo ao mundo do horror! 👻🎮",
-    "Olá, aventureiro do terror! Pronto para conhecer os jogos mais assustadores?",
-    "Bem-vindo! Eu sou seu guia nos universos sombrios dos games de horror.",
-    "Oi! Que jogo de horror você gostaria de explorar comigo? 😱",
-    "Bem-vindo, bem-vindo... que tipo de horror o interessa?",
-]
-
-# ================================================================
-# CONECTIVOS PÓS-RESPOSTA POSITIVA
-# Usados para continuar a conversa quando o usuário está satisfeito
-# ================================================================
-CONECTIVOS_POSITIVOS = [
-    "Quer saber mais sobre outro jogo?",
-    "Há mais coisas interessantes que posso te contar... quer ouvir?",
-    "Ficou curioso? Tenho mais horror para você! 👻",
-    "Gostou? Posso falar sobre outros clássicos do terror!",
-    "Que tal explorarmos outro jogo assustador?",
-    "Fascinado? Deixa eu te contar sobre mais um...",
-    "E se eu te dissesse que existe algo ainda mais assustador?",
-    "Quer mais? Tenho uma lista inteira de pesadelos para você!",
-    "Impressionado? Espere só até você saber sobre...",
-    "Que bom que gostou... mas o melhor ainda está por vir! 😈",
-]
-
-# ================================================================
-# CONECTIVOS PÓS-RESPOSTA NEGATIVA
-# Usados para continuar a conversa quando o usuário não entendeu ou recusou
-# ================================================================
-CONECTIVOS_NEGATIVOS = [
-    "Desculpa, deixa eu tentar de novo... qual jogo de horror você gostaria de conhecer?",
-    "Hm, acho que não me expressei bem. Quer tentar de novo?",
-    "Talvez eu não tenha entendido... pode reformular a pergunta?",
-    "Não se preocupe! Qual aspecto do horror mais te interessa?",
-    "Deixa eu ser mais claro... qual é seu tipo de terror favorito?",
-    "Sem problemas! Quer explorar outro gênero de horror?",
-    "Talvez você queira saber sobre um jogo específico? Qual?",
-    "Entendo... vamos recomeçar. Qual jogo de horror você conhece?",
-    "Desculpa pela confusão! Fale-me qual é o seu jogo favorito do gênero.",
-    "Não captei direito... qual horror te chama mais atenção?",
-]
-
-# ================================================================
-# VALIDAÇÃO DE ENTRADA - Fuzzy Matching
-# ================================================================
-
-def calcular_similaridade(str1, str2):
-    """
-    Calcula a similaridade entre duas strings usando SequenceMatcher
-    Retorna um valor entre 0 e 1 (1 = idêntico)
-    """
-    return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
-
-
-def encontrar_palavra_similar(palavra_entrada, lista_palavras, limiar_minimo=0.75):
-    """
-    Encontra a palavra mais similar na lista de acordo com o limiar mínimo
-    
-    Args:
-        palavra_entrada: A palavra que o usuário digitou
-        lista_palavras: Lista de palavras válidas para comparar
-        limiar_minimo: Valor mínimo de similaridade (0-1)
-    
-    Returns:
-        Tupla (palavra_encontrada, score) ou (None, 0) se não encontrar
-    """
-    melhor_match = None
-    melhor_score = 0
-    
-    for palavra in lista_palavras:
-        score = calcular_similaridade(palavra_entrada, palavra)
-        if score > melhor_score:
-            melhor_score = score
-            melhor_match = palavra
-    
-    if melhor_score >= limiar_minimo:
-        return melhor_match, melhor_score
-    return None, 0
-
-
-def normalizar_entrada(texto):
-    """
-    Normaliza texto removendo acentos, espaços extras e convertendo para lowercase
-    """
-    import unicodedata
-    
-    # Remove acentos
-    nfkd = unicodedata.normalize('NFKD', texto)
-    texto_sem_acento = ''.join([c for c in nfkd if not unicodedata.combining(c)])
-    
-    # Remove espaços múltiplos e converte para minúsculas
-    return ' '.join(texto_sem_acento.lower().split())
-
-
-def extrair_palavras_chave(texto):
-    """
-    Extrai palavras-chave do texto removendo stopwords comuns
-    """
-    stopwords = {
-        'o', 'a', 'os', 'as', 'um', 'uma', 'uns', 'umas',
-        'de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'para', 'por',
-        'com', 'sem', 'em', 'no', 'na', 'nos', 'nas', 'é', 'são',
-        'esse', 'essa', 'esses', 'essas', 'este', 'essa', 'estes', 'estas',
-        'qual', 'quais', 'quanto', 'quantos', 'como', 'onde', 'quando',
-        'me', 'te', 'se', 'nos', 'vos', 'lhe', 'lhes', 'meu', 'teu', 'seu'
-    }
-    
-    palavras = texto.lower().split()
-    return [p for p in palavras if p not in stopwords and len(p) > 2]
-
-
-def sugerir_resposta_baseada_em_similaridade(entrada, palavras_validas, respostas_map):
-    """
-    Tenta encontrar uma resposta válida baseada em fuzzy matching
-    
-    Args:
-        entrada: Texto do usuário
-        palavras_validas: Lista de palavras/termos conhecidos
-        respostas_map: Dicionário {palavra: resposta}
-    
-    Returns:
-        Resposta encontrada ou None
-    """
-    entrada_normalizada = normalizar_entrada(entrada)
-    palavras_entrada = extrair_palavras_chave(entrada_normalizada)
-    
-    melhores_matches = []
-    
-    for palavra in palavras_entrada:
-        match, score = encontrar_palavra_similar(palavra, palavras_validas, limiar_minimo=0.7)
-        if match:
-            melhores_matches.append((match, score))
-    
-    if melhores_matches:
-        # Ordena pelos mais similares
-        melhores_matches.sort(key=lambda x: x[1], reverse=True)
-        palavra_top = melhores_matches[0][0]
-        
-        if palavra_top in respostas_map:
-            return respostas_map[palavra_top]
-    
-    return None
-
-
-# ================================================================
-# ESTRUTURA DE CONTEXTO DE CONVERSAÇÃO
-# ================================================================
-
-class ContextoConversa:
-    """
-    Mantém contexto de conversação para permitir fluxo mais natural
-    """
-    
-    def __init__(self):
-        self.historico = []
-        self.ultima_resposta = None
-        self.contador_falhas = 0
-        self.ultimo_jogo = None
-    
-    def adicionar_mensagem(self, usuario_msg, bot_resposta):
-        """Adiciona uma mensagem ao histórico"""
-        self.historico.append({
-            'usuario': usuario_msg,
-            'bot': bot_resposta
-        })
-        self.ultima_resposta = bot_resposta
-    
-    def incrementar_falhas(self):
-        """Incrementa contador de falhas de compreensão"""
-        self.contador_falhas += 1
-    
-    def resetar_falhas(self):
-        """Reseta contador de falhas"""
-        self.contador_falhas = 0
-    
-    def limpar(self):
-        """Limpa o contexto"""
-        self.__init__()
-
-
-# ================================================================
-# MAPEAMENTO DE TERMOS COM FUZZY MATCHING
-# ================================================================
-
-# Dicionário de termos conhecidos para fuzzy matching
-TERMOS_CONHECIDOS = {
-    # Sentimentos positivos
-    'gostei': ['gostei', 'adorei', 'amei', 'legal', 'awesom', 'fantastico', 'otimo', 'excelente'],
-    'interessante': ['interess', 'curioso', 'intriga', 'fascinante', 'nessa'],
-    'aprender': ['aprendo', 'saber', 'conhecer', 'descobrir', 'entender'],
-    
-    # Sentimentos negativos
-    'nao_entendi': ['nao entendo', 'confuso', 'complicado', 'estranho', 'doido', 'huh', 'que'],
-    'assustado': ['medo', 'medo demais', 'tremendo', 'assustado', 'aterrado', 'apavorado'],
-    'entediado': ['entedi', 'chato', 'boring', 'monoton'],
-    
-    # Ações
-    'jogar': ['jogar', 'joguei', 'joguemos', 'jogo', 'playing', 'play'],
-    'recomenda': ['recomenda', 'recomende', 'sugere', 'qual jogo', 'qual game'],
-    
-    # Tópicos
-    'historia': ['historia', 'lore', 'trama', 'enredo', 'background', 'narrativa'],
-    'graficos': ['grafico', 'visual', 'arte', 'design', 'imagem', 'qualidad'],
-    'som': ['som', 'sonor', 'audio', 'musica', 'trilha', 'efeito'],
-}
-
-# ================================================================
-# CONECTIVOS PARA DIFERENTES CONTEXTOS
-# ================================================================
-
-CONECTIVOS_POR_CONTEXTO = {
-    'positive_after_info': CONECTIVOS_POSITIVOS,
-    'negative_after_info': CONECTIVOS_NEGATIVOS,
-    'restart': [
-        "Vamos recomeçar! Qual é seu jogo de horror favorito?",
-        "Sem problemas, vamos do zero. Que tipo de horror você gosta?",
-        "Deixa eu fazer uma pergunta mais simples: você prefere survival horror ou psicológico?",
-    ],
-    'escalate_help': [
-        "Que tal você me contar qual é o seu jogo de horror favorito? Assim consigo ajudar melhor!",
-        "Deixa eu te fazer uma pergunta diferente: qual foi o último jogo de horror que você jogou?",
-        "Talvez seja mais fácil se você me disser um jogo de horror que você conhece.",
-    ]
-}
-
-# ================================================================
-# FUNCTIONS UTILITÁRIAS
-# ================================================================
-
-def gerar_saudacao_inicial():
-    """Retorna uma saudação inicial aleatória"""
-    import random
-    return random.choice(SAUDACOES_INICIAIS)
-
-
-def gerar_conectivo_positivo():
-    """Retorna um conectivo positivo aleatório"""
-    import random
-    return random.choice(CONECTIVOS_POSITIVOS)
-
-
-def gerar_conectivo_negativo():
-    """Retorna um conectivo negativo aleatório"""
-    import random
-    return random.choice(CONECTIVOS_NEGATIVOS)
-
-
-def detectar_intencao(texto):
-    """
-    Detecta a intenção do usuário baseado em palavras-chave
-    Retorna: 'positiv', 'negativ', 'pergunta', 'info' ou 'desconhecido'
-    """
-    texto_lower = texto.lower()
-    
-    # Palavras que indicam satisfação positiva
-    if any(palavra in texto_lower for palavra in ['gostei', 'adorei', 'amei', 'legal', 'bacana', 'maneiro']):
-        return 'positivo'
-    
-    # Palavras que indicam insatisfação
-    if any(palavra in texto_lower for palavra in ['nao', 'ruim', 'chato', 'entediante', 'confuso', 'nao entendo']):
-        return 'negativo'
-    
-    # Palavras que indicam pergunta
-    if any(palavra in texto_lower for palavra in ['qual', 'quando', 'onde', 'como', 'por que', 'quem', 'você']):
-        return 'pergunta'
-    
-    # Palavras que indicam que quer mais informações
-    if any(palavra in texto_lower for palavra in ['mais', 'continue', 'e tal', 'e os outros', 'mais algum']):
-        return 'info'
-    
-    return 'desconhecido'
-
-
-# ================================================================
-# SISTEMA DE CONEXÕES ENTRE JOGOS E GÊNEROS
-# ================================================================
-
-# Mapeia jogos para outros jogos similares (para sugestões relacionadas)
-CONEXOES_JOGOS = {
+JOGOS = {
     'resident evil': {
-        'similares': ['dead space', 'dino crisis', 'evil within'],
+        'info': [
+            'Resident Evil é um dos maiores clássicos do survival horror! Zumbis, Umbrella Corporation e muita tensão. 🧟',
+            'A série RE mistura ação com terror. RE4 é considerado uma obra-prima!',
+            'Do RE7 em diante, a série ganhou perspectiva em primeira pessoa, muito mais imersiva.',
+        ],
         'genero': 'survival horror',
-        'descricao': 'um jogo de survival horror com zumbis e criaturas bizarras',
+        'similares': ['dead space', 'dino crisis', 'evil within'],
+        'tags': ['resident', 'biohazard', 're2', 're3', 're4', 're7', 're8', 'umbrella', 'zumbi'],
     },
     'silent hill': {
-        'similares': ['alan wake', 'amnesia', 'soma'],
+        'info': [
+            'Silent Hill é referência em terror psicológico. A cidade reflete os medos dos personagens. 😰',
+            'Silent Hill 2 é considerado um dos melhores jogos de horror de todos os tempos!',
+            'O Pyramid Head é um dos vilões mais icônicos — representa culpa e punição.',
+        ],
         'genero': 'terror psicológico',
-        'descricao': 'um jogo de terror psicológico com atmosfera assustadora',
+        'similares': ['alan wake', 'amnesia', 'soma'],
+        'tags': ['silent', 'hill', 'pyramid', 'head'],
     },
     'fnaf': {
-        'similares': ['outlast', 'alien isolation', 'five nights at freddy'],
-        'genero': 'jump scare/survival',
-        'descricao': 'um jogo focado em sustos constantes e tensão extrema',
+        'info': [
+            "Five Nights at Freddy's é focado em sobrevivência contra animatrônicos assassinos. 🤖",
+            'FNAF é famoso pelos jump scares e uma lore extremamente complexa!',
+            'São 9 jogos com uma história trágica por trás dos animatrônicos.',
+        ],
+        'genero': 'jump scare',
+        'similares': ['outlast', 'bendy'],
+        'tags': ['fnaf', 'freddy', 'animatronico', 'five', 'nights', 'bonnie', 'chica', 'foxy'],
     },
     'amnesia': {
-        'similares': ['soma', 'outlast', 'penumbra'],
+        'info': [
+            'Em Amnesia você não pode lutar — só fugir e se esconder! 😱',
+            'Amnesia: The Dark Descent praticamente criou o gênero moderno de horror indie.',
+            'A mecânica de sanidade torna o jogo ainda mais aterrorizante.',
+        ],
         'genero': 'terror psicológico',
-        'descricao': 'um jogo de fuga onde você não pode lutar, apenas sobreviver',
+        'similares': ['soma', 'outlast', 'silent hill'],
+        'tags': ['amnesia', 'descent', 'rebirth', 'sanidade'],
     },
     'alan wake': {
-        'similares': ['silent hill', 'resident evil', 'evil within'],
-        'genero': 'ação + terror psicológico',
-        'descricao': 'um jogo que mistura ação com narrativa de horror',
+        'info': [
+            'Alan Wake mistura terror psicológico com ação — luz contra a escuridão. 🔦',
+            'A história envolve um escritor preso em um pesadelo sombrio e criativo.',
+            'Alan Wake 2 expandiu o mistério de forma brilhante.',
+        ],
+        'genero': 'terror psicológico',
+        'similares': ['silent hill', 'evil within', 'resident evil'],
+        'tags': ['alan', 'wake', 'escritor'],
     },
     'dead space': {
+        'info': [
+            'Dead Space mistura terror com ficção científica no espaço. 🚀😱',
+            'Os necromorfos são criaturas biomecânicas absolutamente horríveis.',
+            'O remake trouxe uma experiência ainda mais imersiva e aterrorizante.',
+        ],
+        'genero': 'survival horror',
         'similares': ['resident evil', 'alien isolation', 'dino crisis'],
-        'genero': 'survival horror + ficção científica',
-        'descricao': 'um jogo de horror no espaço com criaturas biomecânicas',
+        'tags': ['necromorfo', 'necromorph'],
     },
     'outlast': {
+        'info': [
+            'Outlast é um jogo de fuga com câmera de visão noturna como única defesa. 📹',
+            'O hospital psiquiátrico Mount Massive é absolutamente aterrorizante!',
+            'Outlast 2 expande a experiência com cenários igualmente perturbadores.',
+        ],
+        'genero': 'survival',
         'similares': ['amnesia', 'alien isolation', 'soma'],
-        'genero': 'fuga/survival',
-        'descricao': 'um jogo de fuga intense em um hospital psiquiátrico',
+        'tags': ['outlast', 'hospital', 'whistleblower'],
     },
     'dino crisis': {
-        'similares': ['resident evil', 'dead space', 'evil within'],
+        'info': [
+            'Dino Crisis é como Resident Evil, mas com dinossauros! 🦖',
+            'Dinossauros geneticamente modificados com inteligência predatória.',
+            'Um clássico subestimado que merece mais reconhecimento.',
+        ],
         'genero': 'survival horror',
-        'descricao': 'um jogo de survival horror com dinossauros geneticamente modificados',
+        'similares': ['resident evil', 'dead space'],
+        'tags': ['dino', 'dinossauro'],
     },
-    'alien isolation': {
-        'similares': ['dead space', 'outlast', 'soma'],
-        'genero': 'survival horror + ficção científica',
-        'descricao': 'um jogo de tensão extrema enfrentando um xenomorfo implacável',
+    'evil within': {
+        'info': [
+            'The Evil Within traz terror intenso com criaturas bizarras. 😱',
+            'Dirigido por Shinji Mikami, o criador de Resident Evil!',
+            'O mundo distorcido do jogo é absolutamente perturbador.',
+        ],
+        'genero': 'survival horror',
+        'similares': ['resident evil', 'silent hill'],
+        'tags': ['within', 'shinji', 'mikami'],
     },
     'until dawn': {
-        'similares': ['the quarry', 'bendy', 'horrified'],
-        'genero': 'narrativo interativo',
-        'descricao': 'um jogo onde suas escolhas determinam quem sobrevive',
+        'info': [
+            'Until Dawn é um jogo onde suas escolhas decidem quem vive ou morre. 🎬',
+            'Quase um filme interativo de horror com atores reais.',
+            'Cada decisão importa — qualquer personagem pode morrer.',
+        ],
+        'genero': 'narrativo',
+        'similares': ['the quarry', 'bendy'],
+        'tags': ['until', 'dawn'],
+    },
+    'the quarry': {
+        'info': [
+            'The Quarry segue o estilo Until Dawn — decisões que mudam tudo. 🎮',
+            'Monitores num acampamento de verão... e coisas horríveis acontecem.',
+            'Um dos melhores jogos de horror narrativo dos últimos anos.',
+        ],
+        'genero': 'narrativo',
+        'similares': ['until dawn'],
+        'tags': ['quarry', 'acampamento'],
+    },
+    'soma': {
+        'info': [
+            'SOMA é horror psicológico subaquático que questiona a existência humana. 🌊',
+            'As criaturas desafiam sua percepção de realidade e consciência.',
+            'Um dos jogos mais filosoficamente perturbadores que existem.',
+        ],
+        'genero': 'terror psicológico',
+        'similares': ['amnesia', 'outlast'],
+        'tags': ['soma', 'subaquatico', 'consciencia'],
+    },
+    'dead by daylight': {
+        'info': [
+            'Dead by Daylight: você caça... ou é caçado. 🩸',
+            'Um jogador é o assassino, os outros tentam sobreviver e escapar.',
+            'Cada assassino tem poderes únicos e mortais.',
+        ],
+        'genero': 'multiplayer',
+        'similares': ['until dawn'],
+        'tags': ['daylight', 'dbd', 'killer'],
+    },
+    'alien isolation': {
+        'info': [
+            'Alien: Isolation é tensão pura contra um Xenomorfo implacável. 👽',
+            'O alien aprende com seus movimentos — cada partida é diferente.',
+            'Esconder, distrair e economizar recursos: a chave da sobrevivência.',
+        ],
+        'genero': 'survival horror',
+        'similares': ['dead space', 'outlast', 'soma'],
+        'tags': ['alien', 'xenomorfo', 'ripley', 'sevastopol'],
+    },
+    'fatal frame': {
+        'info': [
+            'Fatal Frame: sua única arma é uma câmera contra espíritos. 📸',
+            'A Camera Obscura captura fantasmas do folclore japonês.',
+            'Quanto mais perto do espírito, mais dano... e mais medo.',
+        ],
+        'genero': 'terror psicológico',
+        'similares': ['silent hill', 'haunting ground'],
+        'tags': ['fatal', 'obscura'],
+    },
+    'haunting ground': {
+        'info': [
+            'Haunting Ground: terror psicológico onde você só foge e se esconde. 😨',
+            'O pânico de Fiona afeta diretamente a jogabilidade.',
+            'Clássico do PS2, pouco conhecido mas muito intenso.',
+        ],
+        'genero': 'terror psicológico',
+        'similares': ['fatal frame', 'silent hill'],
+        'tags': ['haunting', 'fiona'],
+    },
+    'bendy': {
+        'info': [
+            'Bendy and the Ink Machine: terror com estilo de cartoon antigo. 😈',
+            'Um estúdio de animação abandonado cheio de segredos sombrios.',
+            'Design artístico único que mistura nostalgia com horror.',
+        ],
+        'genero': 'ação + horror',
+        'similares': ['fnaf', 'until dawn'],
+        'tags': ['bendy', 'tinta', 'ink', 'machine', 'cartoon'],
     },
 }
 
-# Mapeia gêneros para sugestões de jogos
-SUGESTOES_POR_GENERO = {
-    'survival horror': ['Resident Evil', 'Silent Hill', 'Dead Space', 'Evil Within'],
-    'terror psicológico': ['Amnesia', 'Alan Wake', 'SOMA', 'Silent Hill'],
-    'jump scare': ['Five Nights at Freddy\'s', 'Outlast', 'Bendy and the Ink Machine'],
-    'ação': ['Resident Evil', 'Dead Space', 'Dino Crisis'],
-    'ficção científica': ['Dead Space', 'Alien: Isolation', 'SOMA'],
-    'narrativo interativo': ['Until Dawn', 'The Quarry'],
-}
-
-# Conexões baseadas em títulos parciais
-MAPEAMENTO_CONEXOES = {
-    'resident': 'resident evil',
-    'silent': 'silent hill',
-    'fnaf': 'fnaf',
+# Nomes alternativos para jogos (alias → chave em JOGOS)
+NOMES_ALT = {
+    'five nights at freddy': 'fnaf',
     'five nights': 'fnaf',
-    'amnesia': 'amnesia',
-    'alan': 'alan wake',
-    'dead': 'dead space',
-    'outlast': 'outlast',
-    'dino': 'dino crisis',
-    'alien': 'alien isolation',
-    'until': 'until dawn',
+    'biohazard': 'resident evil',
+    're village': 'resident evil',
 }
 
+GENEROS = {
+    'survival horror': ['Resident Evil', 'Dead Space', 'Dino Crisis', 'Evil Within', 'Alien Isolation'],
+    'terror psicológico': ['Silent Hill', 'Amnesia', 'SOMA', 'Alan Wake', 'Fatal Frame', 'Haunting Ground'],
+    'jump scare': ['FNAF', 'Outlast', 'Bendy'],
+    'ação': ['Resident Evil', 'Dead Space', 'Alan Wake', 'Evil Within'],
+    'narrativo': ['Until Dawn', 'The Quarry'],
+    'multiplayer': ['Dead by Daylight'],
+    'ficção científica': ['Dead Space', 'Alien Isolation', 'SOMA'],
+}
 
-def encontrar_conexao_jogo(titulo_jogo):
-    """
-    Encontra a conexão de um jogo baseado no título
-    Retorna um dicionário com o jogo e seus similares
-    """
-    titulo_norm = normalizar_entrada(titulo_jogo)
-    
-    # Tenta encontro exato
-    if titulo_norm in CONEXOES_JOGOS:
-        return CONEXOES_JOGOS[titulo_norm]
-    
-    # Tenta encontrar por palavra-chave
-    for palavra_chave, jogo in MAPEAMENTO_CONEXOES.items():
-        if palavra_chave in titulo_norm:
-            if jogo in CONEXOES_JOGOS:
-                return CONEXOES_JOGOS[jogo]
-    
-    return None
+SIM = {'sim', 'ss', 'claro', 'certeza', 'obvio', 'demais', 'bora', 'quero',
+       'show', 'massa', 'top', 'yes', 'adoro', 'gosto', 'curto', 'amo',
+       'joguei', 'conheco', 'manda', 'pode', 'dale', 'vamos', 's', 'sip',
+       'aham', 'uhum', 'yeah', 'siiim', 'siim', 'isso', 'ja', 'com certeza'}
 
+NAO = {'nao', 'não', 'nope', 'nunca', 'nem', 'negativo', 'passo', 'nah',
+       'n', 'nn', 'nada', 'naoo', 'nop'}
 
-def gerar_sugestao_conectada(jogo_mencionado):
-    """
-    Gera uma sugestão de jogo relacionado ao jogo mencionado
-    Adiciona uma pergunta se o usuário quer saber mais
-    """
-    import random
-    
-    conexao = encontrar_conexao_jogo(jogo_mencionado)
-    
-    if not conexao:
-        return None
-    
-    similares = conexao.get('similares', [])
-    genero = conexao.get('genero', 'horror')
-    
-    if not similares:
-        return None
-    
-    jogo_sugerido = random.choice(similares)
-    
-    # Frases simples de conexão 
-    frases = [
-        f"Nesse mesmo estilo de {genero}, recomendo {jogo_sugerido}. Quer saber mais? 👻",
-        f"Se você gosta de {genero}, também vai amar {jogo_sugerido}! Deseja conhecer mais?",
-        f"Já que gosta desse tipo de {genero}, talvez curta {jogo_sugerido}. Quer detalhes?",
-    ]
-    
-    return random.choice(frases)
+# ================================================================
+# PERGUNTAS PROFUNDAS — Conversa interativa por jogo
+# Cada entry: (pergunta do bot, respostas para sim, respostas para não)
+# ================================================================
 
-
-def gerar_sugestao_por_negacao(texto_negacao):
-    """
-    Quando o usuário não entende ou recusa, oferece uma alternativa baseada no seu interesse
-    """
-    import random
-    
-    # Detecta que tipo de jogo o usuário pode querer
-    if any(p in texto_negacao.lower() for p in ['ação', 'combate', 'lutar']):
-        genero = 'ação'
-        jogos = ['Resident Evil 4', 'Dead Space', 'Devil May Cry']
-    elif any(p in texto_negacao.lower() for p in ['medo', 'susto', 'jumpscare']):
-        genero = 'jump scare'
-        jogos = ['Five Nights at Freddy\'s', 'Outlast', 'Bendy']
-    elif any(p in texto_negacao.lower() for p in ['psicológico', 'mente', 'chefe']):
-        genero = 'terror psicológico'
-        jogos = ['Silent Hill', 'Amnesia', 'Alan Wake']
-    elif any(p in texto_negacao.lower() for p in ['sobreviv', 'fugir', 'escape']):
-        genero = 'survival'
-        jogos = ['Outlast', 'Amnesia', 'Dead Space']
-    else:
-        # Padrão genérico
-        genero = 'horror'
-        jogos = ['Resident Evil', 'Silent Hill', 'Alan Wake']
-    
-    frases = [
-        f"Entendo! Que tal algo mais focado em {genero}? Por exemplo: {random.choice(jogos)}?",
-        f"Talvez você prefira algo com mais {genero}. Recomendo: {random.choice(jogos)}.",
-        f"Sem problema! Se você busca {genero}, eu sugiro: {random.choice(jogos)}!",
-    ]
-    
-    return random.choice(frases)
-
-
-def extrair_jogo_mencionado(texto):
-    """
-    Extrai o nome do jogo mencionado no texto do usuário
-    """
-    texto_lower = normalizar_entrada(texto)
-    
-    for jogo in CONEXOES_JOGOS.keys():
-        if jogo in texto_lower:
-            return jogo
-    
-    for palavra_chave, jogo in MAPEAMENTO_CONEXOES.items():
-        if palavra_chave in texto_lower:
-            return jogo
-    
-    return None
-
-
-if __name__ == "__main__":
-    # Testes básicos
-    print("=== TESTES DO SISTEMA DE HOOKS ===\n")
-    
-    # Teste de saudação
-    print(f"Saudação inicial: {gerar_saudacao_inicial()}\n")
-    
-    # Teste de conectivos
-    print(f"Conectivo positivo: {gerar_conectivo_positivo()}\n")
-    print(f"Conectivo negativo: {gerar_conectivo_negativo()}\n")
-    
-    # Teste de similaridade
-    print("Teste de similaridade:")
-    print(f"  'resident' vs 'residencia': {calcular_similaridade('resident', 'residencia'):.2f}")
-    print(f"  'silent' vs 'silente': {calcular_similaridade('silent', 'silente'):.2f}")
-    print(f"  'jogo' vs 'game': {calcular_similaridade('jogo', 'game'):.2f}\n")
-    
-    # Teste de normalização
-    print("Teste de normalização:")
-    print(f"  'Resídent Evil' -> '{normalizar_entrada('Resídent Evil')}'")
-    print(f"  'SILENT   HILL' -> '{normalizar_entrada('SILENT   HILL')}'")
-    print(f"  'Você gosta de horror?' -> '{normalizar_entrada('Você gosta de horror?')}'")
-    
-    # Teste de detecção de intenção
-    print("\nTeste de detecção de intenção:")
-    textos_teste = [
-        "Adorei essa informação!",
-        "Não gostei muito.",
-        "Qual é o melhor jogo?",
-        "Me conte mais sobre isso.",
-    ]
-    for texto in textos_teste:
-        intencao = detectar_intencao(texto)
-        print(f"  '{texto}' -> {intencao}")
+CONVERSA_PROFUNDA = {
+    'resident evil': [
+        ("Você já jogou o Resident Evil 1, o clássico que começou tudo? 🏚️",
+         "A mansão Spencer é icônica! Aqueles puzzles e corredores escuros marcaram uma geração. Sabia que o jogo quase foi cancelado?",
+         "Vale muito a pena! É o começo de tudo — sobreviver na mansão Spencer com recursos limitados é uma experiência única."),
+        ("Curte mais o estilo clássico (câmera fixa) ou o moderno (primeira/terceira pessoa)?",
+         "O estilo clássico tem um charme especial! A câmera fixa criava uma tensão absurda porque você nunca sabia o que vinha pela frente.",
+         "O estilo moderno é mais imersivo mesmo! RE4 revolucionou com a câmera sobre o ombro, e RE7/RE8 em primeira pessoa são de arrepiar."),
+        ("RE4 é considerado uma obra-prima. Você já jogou? 🎮",
+         "RE4 mudou o gênero inteiro! A aldeia, os Ganados, o Krauser... e o modo Mercenaries é viciante demais!",
+         "RE4 é obrigatório! Mistura ação com tensão perfeitamente. O remake de 2023 ficou incrível, recomendo começar por ele."),
+        ("E o RE2 Remake? Muita gente considera o melhor remake já feito!",
+         "O Mr. X te perseguindo pelos corredores é de gelar o sangue! A delegacia de Raccoon City nunca foi tão aterrorizante. 😱",
+         "O RE2 Remake é sensacional! Te coloca na pele de Leon ou Claire na delegacia infestada de zumbis. Imperdível!"),
+        ("Você conhece a história da Umbrella Corporation? 🧬",
+         "A Umbrella é uma das vilãs mais icônicas dos games! O T-Virus, o G-Virus, os experimentos... cada jogo revela mais da conspiração.",
+         "A Umbrella é a empresa farmacêutica que criou o T-Virus e causou o apocalipse zumbi. A trama dela conecta TODOS os jogos da série!"),
+        ("RE7 mudou tudo com a primeira pessoa. Curtiu essa mudança?",
+         "A família Baker é assustadora demais! Jack te perseguindo é puro terror. E a conexão com a saga principal surpreendeu todo mundo.",
+         "Muita gente estranhou no começo, mas RE7 salvou a série! É muito mais imersivo e a família Baker é inesquecível. Recomendo!"),
+        ("Village (RE8) com a Lady Dimitrescu... jogou? 🧛‍♀️",
+         "O castelo Dimitrescu é lindo e aterrorizante ao mesmo tempo! E a parte do Beneviento... aquela casa de bonecas é perturbadora demais.",
+         "RE8 mistura vários tipos de horror: vampiros, lobisomens, bonecas... a Lady Dimitrescu virou um ícone instantâneo da franquia!"),
+        ("Qual vilão de RE te assusta mais? Nemesis, Mr. X, Jack Baker? 😈",
+         "Boa escolha! Os stalkers de RE são únicos — cada um cria um tipo diferente de tensão. Nemesis gritando 'STARS' é traumático!",
+         "Todos são assustadores de formas diferentes! Nemesis é implacável, Mr. X é silencioso e opressor, Jack Baker é insano."),
+        ("Sabia que RE tem filmes, séries e até animações? Já viu algum?",
+         "Os filmes são polêmicos entre os fãs, mas as animações como Degeneration e Damnation são bem fiéis ao jogo!",
+         "Tem os filmes live-action da Milla Jovovich, a série da Netflix, e animações em CGI. As animações são as mais fiéis aos games!"),
+        ("Se pudesse escolher UM RE pra jogar pela primeira vez de novo, qual seria?",
+         "Escolha difícil! Cada um tem seu brilho. RE2 Remake pela perfeição, RE4 pela diversão, RE7 pelo terror puro... todos são memoráveis! 🎮",
+         "Eu recomendaria RE2 Remake pra quem quer terror, RE4 pra quem quer ação, ou RE7 pra quem quer se borrar de medo! 😱"),
+    ],
+    'silent hill': [
+        ("Você já jogou Silent Hill 2? É considerado o auge do terror psicológico! 😰",
+         "SH2 é uma obra de arte! A história de James e Maria é devastadora. O final te faz repensar TUDO que aconteceu no jogo.",
+         "SH2 é obrigatório pra quem curte terror! A história de James buscando sua esposa morta em Silent Hill é profundamente perturbadora."),
+        ("O Pyramid Head te assusta? Ele é um dos vilões mais icônicos do horror! 🔺",
+         "Pyramid Head é genial porque ele não é só um monstro — ele representa a culpa e o desejo de punição. Puro terror psicológico!",
+         "Mesmo sem jogar, Pyramid Head é cultural! Ele aparece arrastando aquela espada gigante e simboliza os demônios internos dos personagens."),
+        ("Prefere o terror psicológico de SH ou o mais ação de outros jogos?",
+         "SH é mestre em mexer com sua mente! A neblina, os sons, nunca saber se o que você vê é real... é uma experiência diferente de tudo.",
+         "Muita gente prefere ação, e tá tudo bem! Mas SH prova que o medo mais forte vem de dentro, não de monstros que você pode matar."),
+        ("A trilha sonora do Akira Yamaoka é lendária. Já ouviu? 🎵",
+         "Yamaoka é um gênio! Mistura industrial, rock e ambient de um jeito que só Silent Hill tem. 'Theme of Laura' é de chorar!",
+         "Procura no YouTube! A trilha do SH é considerada uma das melhores de todos os games. Funciona até fora do jogo, é linda e assustadora."),
+        ("Sabia que a cidade de Silent Hill reflete os medos de cada personagem?",
+         "É o que torna SH tão especial! Cada personagem vê uma Silent Hill diferente, moldada pelos seus traumas. O mapa muda com a psique!",
+         "É fascinante! A cidade é uma entidade que manifesta os medos de quem entra. Por isso os monstros de cada jogo são únicos pro personagem."),
+        ("SH1 no PS1 e SH3 são muito subestimados. Conhece? 🎮",
+         "SH1 é o original que criou tudo — Alessa, a seita, o fog! E SH3 continua a história com Heather de forma brilhante.",
+         "SH1 começou tudo com a história de Harry buscando sua filha. SH3 traz Heather, filha de Harry, e fecha o arco de forma incrível!"),
+        ("O que te assusta mais: monstros ou o silêncio de SH?",
+         "O silêncio é arma poderosa em SH! Quando o rádio para de fazer estática, você SABE que algo vai acontecer... e a espera é o pior.",
+         "Os dois funcionam juntos! Os monstros simbolizam traumas, e o silêncio te prepara psicologicamente pro horror. Genialidade pura."),
+        ("Você joga no escuro com fone? É a forma definitiva de jogar SH! 🎧",
+         "Corajoso! SH no escuro com fone é uma experiência que marca pra vida. Cada som, cada passo, cada estática do rádio fica 10x mais intenso!",
+         "Se um dia tiver coragem, tenta! O design de som do SH foi feito pra fones. Muda completamente a experiência de terror."),
+        ("O remake de SH2 pela Bloober Team... o que acha?",
+         "Reimaginar SH2 é uma responsabilidade enorme! Os fãs tinham expectativas altíssimas. É interessante ver como uma obra-prima é reinterpretada.",
+         "Independente do remake, o SH2 original sempre vai ser especial. Mas é bom ver a franquia recebendo atenção de novo!"),
+        ("Se Silent Hill fosse real, você entraria na neblina? 🌫️",
+         "Corajoso! Lembre-se: a cidade mostra seus piores medos. O que apareceria pra você? Esse é o verdadeiro terror de Silent Hill!",
+         "Sábia decisão! 😂 Ninguém sano entraria naquela neblina. Mas é isso que torna SH tão fascinante — o horror de enfrentar a si mesmo."),
+    ],
+    'alan wake': [
+        ("Você já jogou Alan Wake 1? A história do escritor preso no pesadelo é incrível! 🔦",
+         "AW1 é genial! A mecânica de luz contra escuridão é única. E a narrativa em formato de série de TV é muito criativa!",
+         "AW1 é uma experiência única! Você é um escritor cuja história de terror se torna realidade. A mecânica de usar luz como arma é brilhante."),
+        ("A mecânica de usar luz pra derrotar inimigos te agrada? 🔦",
+         "É uma das mecânicas mais criativas do horror! Lanterna + flare gun + holofotes criam um gameplay totalmente diferente.",
+         "É bem diferente do usual! Em vez de só atirar, você precisa 'descascar' a escuridão dos inimigos com luz antes de poder derrotá-los."),
+        ("Alan Wake tem uma pegada muito de Stephen King. Curte esse estilo? 📖",
+         "A influência é clara! Cidade pequena, escritor, forças sobrenaturais... é como jogar um livro do King. A atmosfera de Bright Falls é perfeita!",
+         "O jogo é inspirado em Stephen King e Twin Peaks! Bright Falls é uma cidadezinha americana com segredos sombrios. Clima de thriller literário!"),
+        ("A série foi feita em formato de episódios de TV. Curtiu essa estrutura?",
+         "Cada episódio termina com um cliffhanger e a tela 'Previously on Alan Wake'! É como maratonar uma série de terror. Super criativo!",
+         "É bem diferente! Cada capítulo funciona como um episódio, com resumo do anterior e trilha sonora no final. Dá vontade de jogar mais!"),
+        ("Alan Wake 2 veio depois de 13 anos. Já jogou? 😱",
+         "A espera valeu! AW2 é mais sombrio, mais complexo, e a adição da agente Saga Anderson trouxe uma perspectiva nova incrível!",
+         "AW2 finalmente saiu em 2023! É mais terror psicológico que o primeiro, com gráficos absurdos e narrativa dupla entre Alan e Saga."),
+        ("Sabia que Alan Wake se conecta com Control, outro jogo da Remedy?",
+         "O Remedy Connected Universe é fascinante! O DLC de Control 'AWE' conecta os dois jogos. A Remedy está criando seu próprio multiverso!",
+         "A Remedy criou um universo compartilhado! Alan Wake e Control existem no mesmo mundo. O DLC 'AWE' de Control traz o Alan diretamente."),
+        ("O que te assusta mais em AW: os Taken ou a própria escuridão? 🌑",
+         "A escuridão em AW não é só ausência de luz — é uma ENTIDADE. Os Taken são pessoas consumidas por ela. O conceito é aterrorizante!",
+         "Os dois funcionam juntos! A Dark Presence é uma força que consome pessoas, transformando-as em Taken. A floresta à noite é opressiva."),
+        ("Bright Falls e Cauldron Lake... a ambientação te agrada?",
+         "A ambientação pacífica do noroeste americano em contraste com o horror é genial! De dia tudo parece tranquilo, de noite é pesadelo!",
+         "O cenário é lindo e sinistro! Floresta densa, lagos escuros, uma cidadezinha isolada... perfeito pra uma história de terror."),
+        ("AW tem umas músicas épicas, como 'War' do Poets of the Fall. Ouviu? 🎵",
+         "A cena do 'War' na fazenda de Barry com o palco de rock é LENDÁRIA! E 'The Poet and the Muse' do Old Gods of Asgard é parte da lore!",
+         "Procura 'Alan Wake War scene' no YouTube! É uma das cenas mais icônicas de um jogo. Música e gameplay juntos de forma épica!"),
+        ("Se você fosse escritor como Alan, teria coragem de usar o manuscrito? ✍️",
+         "O dilema do Alan é fascinante: tudo que ele escreve se torna real, mas ele não pode controlar como! Seria tentador e aterrorizante!",
+         "Sábia escolha! O manuscrito é uma bênção e maldição. Tudo que Alan escreve acontece, mas de formas distorcidas e sombrias. Melhor não arriscar! 😅"),
+    ],
+}
