@@ -153,6 +153,9 @@ def responder(mensagem):
             "E aí! Bora falar de jogos de horror? 🎮 Qual seu favorito?",
             "Opa! Curte jogos de terror? Me conta qual você gosta!",
             "Salve! Me diz um jogo de horror que você curte! 👻",
+            "Fala! Sou o Davy Jones, seu guia no mundo do terror. Qual jogo tá na sua mente? 😱",
+            "Ei! Pronto pra mergulhar no mundo do horror? Me conta um jogo que te assusta!",
+            "Boa! Você veio ao lugar certo pra falar de games de terror. Por onde começamos? 🎮",
         ])
         memoria.salvar(texto, r)
         return r
@@ -162,6 +165,9 @@ def responder(mensagem):
         r = random.choice([
             "Até mais! Que seus pesadelos sejam épicos! 👻",
             "Valeu! Volte quando quiser falar de terror! 🎮",
+            "Até! Foi um prazer mergulhar no horror com você. 😱",
+            "Flw! Se der medo sozinho, volta aqui! 👻",
+            "Bye! Dorme bem... se conseguir depois de tanto papo de terror! 😈",
         ])
         memoria.salvar(texto, r)
         return r
@@ -206,6 +212,10 @@ def responder(mensagem):
         "Hmm, não captei! 🤔 Me fala um jogo de horror ou pede uma recomendação!",
         "Não entendi... tenta perguntar sobre um jogo de terror! 👻",
         "Que? 😅 Fala sobre horror! Tipo: Resident Evil, Silent Hill, FNAF...",
+        "Não peguei bem... tenta citar um jogo ou pedir uma dica! 🎮",
+        "Pode elaborar? Sou especialista em terror — me fala um jogo ou um estilo! 😱",
+        "Não entendi, mas não desisto! Fala um jogo de horror que eu te conto tudo. 👻",
+        "Hmm... será que você mencionou algo que ainda não conheço? Tenta outro jogo! 🤔",
     ])
     memoria.salvar(texto, r)
     return r
@@ -390,4 +400,7 @@ def obter_saudacao_inicial():
         "Bem-vindo ao mundo do horror! 👻🎮",
         "Olá, aventureiro! Pronto pra conhecer jogos assustadores?",
         "E aí! Eu sou o Davy Jones, seu guia nos games de horror. 😱",
+        "Prepare-se para o terror... sou o Davy Jones e sei tudo sobre jogos de horror! 👻",
+        "Olá! Entraste nas profundezas do horror digital. Vamos explorar juntos? 🎮",
+        "Bem-vindo, corajoso! Aqui a gente fala só de jogos que tiram o sono. 😈",
     ])
