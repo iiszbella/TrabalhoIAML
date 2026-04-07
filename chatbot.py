@@ -1,10 +1,16 @@
 import re
 import random
 from nltk.chat.util import Chat, reflections as nltk_reflections
+from hooks import (
+    gerar_conectivo_positivo, gerar_conectivo_negativo, detectar_intencao,
+    encontrar_palavra_similar, normalizar_entrada, extrair_palavras_chave,
+    ContextoConversa, TERMOS_CONHECIDOS, gerar_sugestao_conectada,
+    gerar_sugestao_por_negacao, extrair_jogo_mencionado, gerar_saudacao_inicial
+)
 
 
 class ChatbotHorror(Chat):
-    """Classe especializada para chatbot de horror com matching case-insensitive"""
+    """Classe especializada para chatbot de horror com matching case-insensitive e fuzzy matching"""
     
     # Palavras-chave que indicam uma entrada válida sobre horror
     PALAVRAS_CHAVE = {
@@ -15,7 +21,7 @@ class ChatbotHorror(Chat):
         'amnesia', 'dark', 'descent', 'rebirth',
         'dead', 'space', 'necromorph',
         'dbd', 'assassino', 'sobrevivente', 'gerador', 'entidade', 'killer',
-        'alan', 'wake', 'camera', 'fantasma', 'assombração', 'espírito', 'maldição'
+        'alan', 'wake', 'camera', 'fantasma', 'assombração', 'espírito', 'maldição',
         'outlast', 'soma', 'bendy', 'quarry', 'until dawn',
         'evil', 'within', 'dino', 'crisis', 'dinosauro',
         'haunting', 'cachorro', 'castelo', 'ps2',
@@ -31,36 +37,65 @@ class ChatbotHorror(Chat):
         'você', 'nome', 'estar', 'bem', 'medo'
     }
     
+    def __init__(self, pairs, reflections):
+        """Inicializa o chatbot com suporte a contexto"""
+        super().__init__(pairs, reflections)
+        self.contexto = ContextoConversa()
+    
     def respond(self, str):
-        """Override do respond() com validação de palavras-chave"""
+        """Override do respond() com fuzzy matching simples"""
         str_lower = str.lower()
+        str_normalizado = normalizar_entrada(str)
         
-        # Primeiro, tenta encontrar um padrão que corresponda
+        # Extrai jogo mencionado
+        jogo_mencionado = extrair_jogo_mencionado(str)
+        
+        # Tenta encontrar um padrão que corresponda
         for (pattern, responses) in self._pairs:
             match = re.search(pattern, str_lower)
             if match:
-                return random.choice(responses)
+                resposta = random.choice(responses)
+                self.contexto.adicionar_mensagem(str, resposta)
+                self.contexto.resetar_falhas()
+                
+                # Se mencionou um jogo, adiciona sugestão conectada
+                if jogo_mencionado:
+                    sugestao = gerar_sugestao_conectada(jogo_mencionado)
+                    if sugestao:
+                        resposta += " " + sugestao
+                
+                return resposta
         
-        # Se nenhum padrão corresponder, verifica se tem palavras-chave válidas
+        # Se nenhum padrão corresponder, verifica palavras-chave
+        palavras_entrada = extrair_palavras_chave(str_normalizado)
         tem_palavras_chave = any(palavra in str_lower for palavra in self.PALAVRAS_CHAVE)
         
         if not tem_palavras_chave:
-            # Entrada completamente aleatória/sem contexto
+            # Entrada sem contexto
+            self.contexto.incrementar_falhas()
             respostas_invalidas = [
-                "Desculpa, não entendi! 😅 Escreva sobre algum jogo de horror.",
-                "Huh? 🤔 Não consegui entender. Tente falar sobre jogos de terror!",
-                "Desculpe, essa frase não faz sentido para mim. Quer falar sobre horror?",
-                "Que? 👻 Escreva algo relacionado a jogos de horror!"
+                "Desculpa, não entendi! 😅 Fale sobre jogos de horror.",
+                "Huh? 🤔 Tente perguntar sobre terror!",
+                "Que? 👻 Escreva sobre horror!"
             ]
-            return random.choice(respostas_invalidas)
+            resposta = random.choice(respostas_invalidas)
+            
+            if self.contexto.contador_falhas >= 2:
+                resposta += " " + gerar_sugestao_por_negacao(str)
+            
+            self.contexto.adicionar_mensagem(str, resposta)
+            return resposta
         
-        # Tem palavras-chave mas não encontrou padrão específico
+        # Tem palavras-chave mas não encontrou padrão
+        self.contexto.resetar_falhas()
         fallback = [
-            "Sobre qual jogo de horror você quer saber? Recomendo Resident Evil, Silent Hill, FNAF ou Amnesia!",
-            "Pode me contar mais? Qual é seu jogo de horror favorito?",
-            "Qual é seu tipo favorito de horror? Survival, psicológico ou ação?"
+            "Qual jogo você quer conhecer? Resident Evil, Silent Hill, FNAF?",
+            "Pode detalhar mais? Qual é seu jogo favorito?",
+            "Que tipo de horror: Survival, psicológico ou jump scare?"
         ]
-        return random.choice(fallback)
+        resposta = random.choice(fallback)
+        self.contexto.adicionar_mensagem(str, resposta)
+        return resposta
 
 
 pares = [
@@ -479,7 +514,13 @@ chatbot = ChatbotHorror(pares, reflections)
 
 def responder(mensagem):
     """Função wrapper para responder mensagens"""
-    return chatbot.respond(mensagem)
+    resposta = chatbot.respond(mensagem)
+    return resposta
+
+def obter_saudacao_inicial():
+    """Retorna uma saudação inicial para iniciar a conversa"""
+    from hooks import gerar_saudacao_inicial
+    return gerar_saudacao_inicial()
 
 
 # Para uso em terminal (descomentado se necessário):

@@ -107,8 +107,18 @@
     });
 }
     
-    // Focar no input ao carregar
+    // Carregar saudação inicial e focar no input
     document.addEventListener('DOMContentLoaded', () => {
+        // Carregar saudação
+        fetch("/saudacao")
+            .then(res => res.json())
+            .then(data => {
+                let chat = document.getElementById("chat");
+                chat.appendChild(criarMensagem(data.mensagem, 'bot'));
+                chat.scrollTop = chat.scrollHeight;
+            })
+            .catch(err => console.error("Erro ao carregar saudação:", err));
+        
         document.getElementById("mensagem").focus();
     });
 </script>
