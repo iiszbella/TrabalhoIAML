@@ -86,8 +86,14 @@ def eh_nao(texto):
 
 
 def _eh_saudacao(texto):
-    return any(t in {'oi', 'ola', 'eai', 'opa', 'fala', 'salve', 'hey', 'oie', 'hello'}
-               for t in normalizar(texto).split())
+    n = normalizar(texto)
+    tokens = n.split()
+    palavras = {'oi', 'ola', 'eai', 'opa', 'fala', 'salve', 'hey', 'oie', 'hello',
+                'hi', 'yo', 'ae', 'iae', 'eae'}
+    if any(t in palavras for t in tokens):
+        return True
+    frases = ['bom dia', 'boa tarde', 'boa noite', 'e ai', 'e ae']
+    return any(f in n for f in frases)
 
 
 def _eh_despedida(texto):
