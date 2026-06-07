@@ -6,6 +6,7 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import RSLPStemmer
 from hooks import JOGOS, GENEROS, NOMES_ALT, SIM, NAO, CONVERSA_PROFUNDA
+from rawg_service import buscar_jogo_api
 
 # Baixa recursos NLTK necessários
 for _r in ['punkt_tab', 'rslp']:
@@ -134,102 +135,19 @@ memoria = Memoria()
 # ================================================================
 
 def responder(mensagem):
-    """Processa a mensagem do usuário e retorna uma resposta."""
-    texto = mensagem.strip()
-    if not texto:
-        return "Não entendi! Fale sobre jogos de horror. 👻"
 
-    # Se há uma pergunta pendente (sim/não, gênero, etc.), trata primeiro
-    if memoria.estado:
-        return _processar_pendente(texto)
+    jogo = detectar_jogo(mensagem)
 
-    # Detecta jogo específico (ANTES de saudação, pois "fala sobre RE" tem "fala")
-    jogo = detectar_jogo(texto)
     if jogo:
-        info = random.choice(JOGOS[jogo]['info'])
-        memoria.ultimo_jogo = jogo
-        memoria.estado = 'curtiu_jogo'
-        r = f"{info}\n\nVocê curte {jogo.title()}?"
-        memoria.salvar(texto, r)
-        return r
+        dados_jogo = buscar_jogo_api(jogo)
 
-    # Saudação
-    if _eh_saudacao(texto):
-        r = random.choice([
-            "E aí! Bora falar de jogos de horror? 🎮 Qual seu favorito?",
-            "Opa! Curte jogos de terror? Me conta qual você gosta!",
-            "Salve! Me diz um jogo de horror que você curte! 👻",
-            "Fala! Sou o Davy Jones, seu guia no mundo do terror. Qual jogo tá na sua mente? 😱",
-            "Ei! Pronto pra mergulhar no mundo do horror? Me conta um jogo que te assusta!",
-            "Boa! Você veio ao lugar certo pra falar de games de terror. Por onde começamos? 🎮",
-        ])
-        memoria.salvar(texto, r)
-        return r
+        if dados_jogo:
+            return responder_llm(
+                mensagem,
+                dados_jogo
+            )
 
-    # Despedida
-    if _eh_despedida(texto):
-        r = random.choice([
-            "Até mais! Que seus pesadelos sejam épicos! 👻",
-            "Valeu! Volte quando quiser falar de terror! 🎮",
-            "Até! Foi um prazer mergulhar no horror com você. 😱",
-            "Flw! Se der medo sozinho, volta aqui! 👻",
-            "Bye! Dorme bem... se conseguir depois de tanto papo de terror! 😈",
-        ])
-        memoria.salvar(texto, r)
-        return r
-
-    # Detecta gênero
-    genero = detectar_genero(texto)
-    if genero and genero in GENEROS:
-        jogos = ', '.join(GENEROS[genero])
-        memoria.estado = 'quer_detalhe'
-        r = f"Pra quem curte {genero}, recomendo: {jogos}! Quer saber sobre algum deles?"
-        memoria.salvar(texto, r)
-        return r
-
-    # Detecta intenção via stemming
-    _, stems = tokenizar(texto)
-    stems_set = set(stems)
-
-    if _STEMS_RECOMENDACAO & stems_set:
-        memoria.estado = 'quer_genero'
-        r = "Qual gênero te interessa? Survival horror, terror psicológico, jump scare, ação, narrativo ou ficção científica?"
-        memoria.salvar(texto, r)
-        return r
-
-    if _STEMS_IDENTIDADE & stems_set:
-        memoria.estado = 'quer_recomendacao'
-        r = "Sou o Davy Jones, seu guia pelos jogos mais sombrios! 👻 Quer uma recomendação?"
-        memoria.salvar(texto, r)
-        return r
-
-    # "como vai" / "tudo bem"
-    n = normalizar(texto)
-    if any(p in n for p in ['como vai', 'tudo bem', 'como esta', 'como voce']):
-        r = random.choice([
-            "Tô bem! Pronto pra falar de horror! 😱 Me pergunta sobre algum jogo!",
-            "De boa por aqui no abismo digital... qual jogo de terror te interessa?",
-        ])
-        memoria.salvar(texto, r)
-        return r
-
-    # Fallback
-    r = random.choice([
-        "Hmm, não captei! 🤔 Me fala um jogo de horror ou pede uma recomendação!",
-        "Não entendi... tenta perguntar sobre um jogo de terror! 👻",
-        "Que? 😅 Fala sobre horror! Tipo: Resident Evil, Silent Hill, FNAF...",
-        "Não peguei bem... tenta citar um jogo ou pedir uma dica! 🎮",
-        "Pode elaborar? Sou especialista em terror — me fala um jogo ou um estilo! 😱",
-        "Não entendi, mas não desisto! Fala um jogo de horror que eu te conto tudo. 👻",
-        "Hmm... será que você mencionou algo que ainda não conheço? Tenta outro jogo! 🤔",
-    ])
-    memoria.salvar(texto, r)
-    return r
-
-
-# ================================================================
-# MÁQUINA DE ESTADOS — PROCESSA PERGUNTAS PENDENTES
-# ================================================================
+    return responder_llm(mensagem)
 
 def _processar_pendente(texto):
     """Processa respostas quando há uma pergunta pendente (sim/não, gênero, etc.)."""
@@ -410,3 +328,7 @@ def obter_saudacao_inicial():
         "Olá! Entraste nas profundezas do horror digital. Vamos explorar juntos? 🎮",
         "Bem-vindo, corajoso! Aqui a gente fala só de jogos que tiram o sono. 😈",
     ])
+from llm_service import responder_llm
+
+def responder(mensagem):
+    return responder_llm(mensagem)

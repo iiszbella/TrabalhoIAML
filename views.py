@@ -1,7 +1,6 @@
-from main import app
 from flask import render_template, request, jsonify
+from main import app
 from chatbot import responder, obter_saudacao_inicial
-
 @app.route("/")
 def index():
     return render_template('chat.html')
