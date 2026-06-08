@@ -1,0 +1,16 @@
+Crie um arquivo python chamado baixar_modelo.py e depois cole esse código:
+
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+MODEL_NAME = "Qwen/Qwen2.5-1.5B-Instruct"
+
+AutoTokenizer.from_pretrained(MODEL_NAME)
+AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+print("Modelo baixado!")
+
+So rodar para baixar o modelo do QWEN
+
+##Para baixar todas dependecias basta rodar esse comando no terminal da maquina virtual- FAÇA ISSO PRIMEIRO PARA BAIXAR O HUGGINGFACE
+
+pip install -r requirements.txt
