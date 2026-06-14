@@ -1,47 +1,58 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from rawg_service import buscar_jogo_api
+import os
 
-
-MODEL_PATH = "./Qwen2.5-1.5B-Instruct"
+# Use absolute path and prefer local files to avoid HF repo validation
+MODEL_DIR = os.path.abspath("Qwen2.5-3B-Instruct")
+HF_REPO = "Qwen/Qwen2.5-3B-Instruct"
 
 print("Carregando LLM...")
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_PATH,
-    low_cpu_mem_usage=True
-)
-
-model.eval()
-
-print("LLM carregada!")
+try:
+    # Tenta carregar modelo a partir de uma pasta local primeiro
+    if os.path.isdir(MODEL_DIR):
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, local_files_only=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_DIR,
+            low_cpu_mem_usage=True,
+            local_files_only=True
+        )
+        model.eval()
+        print("LLM carregada a partir de pasta local!")
+    else:
+        # Caso não exista pasta local, tenta carregar do Hugging Face Hub
+        print(f"Pasta local não encontrada; tentando carregar do HF Hub: {HF_REPO}")
+        tokenizer = AutoTokenizer.from_pretrained(HF_REPO)
+        model = AutoModelForCausalLM.from_pretrained(HF_REPO, low_cpu_mem_usage=True)
+        model.eval()
+        print("LLM carregada a partir do Hugging Face Hub (cache/local)!")
+except Exception as e:
+    print("Erro ao carregar LLM:", e)
+    raise
 
 
 def responder_llm(pergunta, dados_jogo=None):
 
     if dados_jogo:
-#Controla a personalidade e da comandos para chatbot
+        # Controla a personalidade e dá comandos combinados (API + Conhecimento Interno)
         messages = [
             {
                 "role": "system",
                 "content": """
 Você é um especialista em jogos de terror.
-Use APENAS os dados fornecidos pela API.
-Não invente informações.
-Responda de forma natural e amigável.
-Responda normalmente perguntas não relacionadas a jogos de terror
+Abaixo estão os dados oficiais do jogo obtidos por uma API (nota, lançamento, plataformas).
+Sua tarefa é priorizar esses dados da API na sua resposta. Porém, caso o usuário pergunte sobre elementos que NÃO estão na API (como história, personagens, dicas de gameplay ou estilo do jogo), você DEVE utilizar o seu próprio conhecimento interno para complementar a resposta de forma natural e amigável.
+Responda normalmente perguntas não relacionadas a jogos de terror.
 """
             },
             {
                 "role": "user",
                 "content": f"""
-Pergunta: {pergunta}
+Pergunta do Usuário: {pergunta}
 
-Dados oficiais:
-
+Dados oficiais da API:
 Nome: {dados_jogo['nome']}
-Nota: {dados_jogo['nota']}
+Nota/Avaliação: {dados_jogo['nota']}
 Metacritic: {dados_jogo['metacritic']}
 Lançamento: {dados_jogo['lancamento']}
 Plataformas: {', '.join(dados_jogo['plataformas'])}

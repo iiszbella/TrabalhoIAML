@@ -7,6 +7,7 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import RSLPStemmer
 from hooks import JOGOS, GENEROS, NOMES_ALT, SIM, NAO, CONVERSA_PROFUNDA
 from rawg_service import buscar_jogo_api
+from llm_service import responder_llm
 
 # Baixa recursos NLTK necessários
 for _r in ['punkt_tab', 'rslp']:
@@ -328,7 +329,3 @@ def obter_saudacao_inicial():
         "Olá! Entraste nas profundezas do horror digital. Vamos explorar juntos? 🎮",
         "Bem-vindo, corajoso! Aqui a gente fala só de jogos que tiram o sono. 😈",
     ])
-from llm_service import responder_llm
-
-def responder(mensagem):
-    return responder_llm(mensagem)
