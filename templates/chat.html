@@ -31,7 +31,7 @@
 <script>
     let enviando = false;
     
-    function criarMensagem(texto, tipo) {
+    function criarMensagem(texto, tipo, fonte = null) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${tipo}`;
         
@@ -43,6 +43,20 @@
         bubbleDiv.className = 'message-bubble';
         bubbleDiv.innerHTML = texto.replace(/\n/g, '<br>');
         bubbleDiv.setAttribute('role', 'article');
+        
+        // NOVO: Adiciona a indicação de fonte visualmente no balão do bot
+        if (fonte && tipo === 'bot') {
+            const fonteDiv = document.createElement('div');
+            fonteDiv.style.fontSize = '0.65rem';
+            fonteDiv.style.color = 'var(--accent)';
+            fonteDiv.style.marginTop = '8px';
+            fonteDiv.style.borderTop = '1px solid var(--border-color)';
+            fonteDiv.style.paddingTop = '4px';
+            fonteDiv.style.textAlign = 'right';
+            fonteDiv.style.fontStyle = 'italic';
+            fonteDiv.innerHTML = `Fonte: ${fonte}`;
+            bubbleDiv.appendChild(fonteDiv);
+        }
         
         messageDiv.appendChild(labelDiv);
         messageDiv.appendChild(bubbleDiv);
@@ -70,42 +84,43 @@
     }
     
     function enviar() {
-    if (enviando) return;
+        if (enviando) return;
 
-    let input = document.getElementById("mensagem");
-    let msg = input.value.trim();
+        let input = document.getElementById("mensagem");
+        let msg = input.value.trim();
 
-    if (!msg) return;
+        if (!msg) return;
 
-    enviando = true;
+        enviando = true;
 
-    let chat = document.getElementById("chat");
+        let chat = document.getElementById("chat");
 
-    chat.appendChild(criarMensagem(msg, 'user'));
-    chat.scrollTop = chat.scrollHeight;
-
-    input.value = "";
-    input.focus();
-
-    fetch("/chat", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({mensagem: msg})
-    })
-    .then(res => res.json())
-    .then(data => {
-        chat.appendChild(criarMensagem(data.resposta, 'bot'));
+        chat.appendChild(criarMensagem(msg, 'user'));
         chat.scrollTop = chat.scrollHeight;
-    })
-    .catch(() => {
-        chat.appendChild(criarMensagem('Erro ao enviar mensagem', 'bot'));
-    })
-    .finally(() => {
-        enviando = false;
-    });
-}
+
+        input.value = "";
+        input.focus();
+
+        fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({mensagem: msg})
+        })
+        .then(res => res.json())
+        .then(data => {
+            // Repassa a fonte recebida do python para a interface
+            chat.appendChild(criarMensagem(data.resposta, 'bot', data.fonte));
+            chat.scrollTop = chat.scrollHeight;
+        })
+        .catch(() => {
+            chat.appendChild(criarMensagem('Erro ao enviar mensagem', 'bot', 'Erro de Sistema'));
+        })
+        .finally(() => {
+            enviando = false;
+        });
+    }
     
     // Carregar saudação inicial e focar no input
     document.addEventListener('DOMContentLoaded', () => {
@@ -114,7 +129,7 @@
             .then(res => res.json())
             .then(data => {
                 let chat = document.getElementById("chat");
-                chat.appendChild(criarMensagem(data.mensagem, 'bot'));
+                chat.appendChild(criarMensagem(data.mensagem, 'bot', data.fonte));
                 chat.scrollTop = chat.scrollHeight;
             })
             .catch(err => console.error("Erro ao carregar saudação:", err));

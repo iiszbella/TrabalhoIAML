@@ -119,11 +119,11 @@ def _quer_trocar(texto):
 
 class Memoria:
     def __init__(self):
-        self.estado = None          # estado pendente da máquina de conversa
-        self.ultimo_jogo = None     # último jogo discutido
-        self.jogo_sugerido = None   # último jogo sugerido como recomendação
-        self.pergunta_idx = 0       # índice da pergunta profunda atual
-        self.historico = []         # histórico completo de mensagens
+        self.estado = None          
+        self.ultimo_jogo = None     
+        self.jogo_sugerido = None   
+        self.pergunta_idx = 0       
+        self.historico = []         
 
     def salvar(self, user, bot):
         self.historico.append({'user': user, 'bot': bot})
@@ -132,30 +132,33 @@ class Memoria:
 memoria = Memoria()
 
 # ================================================================
-# RESPONDER — FUNÇÃO PRINCIPAL
+# RESPONDER — FUNÇÃO PRINCIPAL COM INDICADOR DE FONTE
 # ================================================================
 
 def responder(mensagem):
-
     jogo = detectar_jogo(mensagem)
 
     if jogo:
         dados_jogo = buscar_jogo_api(jogo)
 
         if dados_jogo:
-            return responder_llm(
-                mensagem,
-                dados_jogo
-            )
+            # Se encontrou na API, retorna a resposta da LLM e avisa a fonte
+            resposta = responder_llm(mensagem, dados_jogo)
+            return {
+                "texto": resposta,
+                "fonte": "API (RAWG) + LLM"
+            }
 
-    return responder_llm(mensagem)
+    # Se não identificou jogo ou a API falhou/não achou, usa apenas o conhecimento interno
+    resposta = responder_llm(mensagem)
+    return {
+        "texto": resposta,
+        "fonte": "Memória Interna (Qwen LLM)"
+    }
 
 def _processar_pendente(texto):
-    """Processa respostas quando há uma pergunta pendente (sim/não, gênero, etc.)."""
+    # O restante da lógica de conversa profunda permanece igual
     estado = memoria.estado
-
-    # REGRA PRINCIPAL: se o usuário mencionou um jogo específico,
-    # respeitar isso independente do estado atual
     jogo_mencionado = detectar_jogo(texto)
     if jogo_mencionado:
         memoria.estado = None
@@ -164,10 +167,8 @@ def _processar_pendente(texto):
     if estado == 'curtiu_jogo':
         if eh_sim(texto):
             jogo = memoria.ultimo_jogo
-            # Se o jogo tem conversa profunda, entra nela
             if jogo in CONVERSA_PROFUNDA:
                 return _iniciar_conversa_profunda(jogo, texto)
-            # Senão, sugere um similar
             similares = JOGOS[jogo]['similares']
             sugerido = random.choice(similares)
             memoria.jogo_sugerido = sugerido
@@ -242,13 +243,11 @@ def _processar_pendente(texto):
     memoria.salvar(texto, r)
     return r
 
-
 # ================================================================
-# CONVERSA PROFUNDA — perguntas interativas por jogo
+# CONVERSA PROFUNDA
 # ================================================================
 
 def _iniciar_conversa_profunda(jogo, texto):
-    """Inicia a conversa profunda sobre um jogo."""
     memoria.ultimo_jogo = jogo
     memoria.pergunta_idx = 0
     memoria.estado = 'conversa_profunda'
@@ -259,8 +258,6 @@ def _iniciar_conversa_profunda(jogo, texto):
 
 
 def _avancar_conversa_profunda(texto):
-    """Processa resposta na conversa profunda e avança para próxima pergunta."""
-    # Se quer trocar de assunto, sai da conversa profunda
     if _quer_trocar(texto):
         jogo = memoria.ultimo_jogo
         memoria.estado = None
@@ -273,21 +270,18 @@ def _avancar_conversa_profunda(texto):
     perguntas = CONVERSA_PROFUNDA[jogo]
     idx = memoria.pergunta_idx
 
-    # Pega a resposta adequada (sim/não) para a pergunta atual
     _, resp_sim, resp_nao = perguntas[idx]
     if eh_nao(texto):
         comentario = resp_nao
     else:
         comentario = resp_sim
 
-    # Avança para a próxima pergunta
     memoria.pergunta_idx = idx + 1
 
     if memoria.pergunta_idx < len(perguntas):
         proxima, _, _ = perguntas[memoria.pergunta_idx]
         r = f"{comentario}\n\n{proxima}"
     else:
-        # Acabaram as perguntas, sugere jogo similar
         similares = JOGOS[jogo]['similares']
         sugerido = random.choice(similares)
         memoria.jogo_sugerido = sugerido
@@ -301,7 +295,6 @@ def _avancar_conversa_profunda(texto):
 
 
 def _tratar_negacao(texto):
-    """Quando o user diz 'não', checa se mencionou jogo ou gênero junto."""
     jogo = detectar_jogo(texto)
     if jogo:
         memoria.estado = None
@@ -315,10 +308,6 @@ def _tratar_negacao(texto):
         return r
     return None
 
-
-# ================================================================
-# SAUDAÇÃO INICIAL
-# ================================================================
 
 def obter_saudacao_inicial():
     return random.choice([
