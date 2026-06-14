@@ -44,7 +44,6 @@
         bubbleDiv.innerHTML = texto.replace(/\n/g, '<br>');
         bubbleDiv.setAttribute('role', 'article');
         
-        // NOVO: Adiciona a indicação de fonte visualmente no balão do bot
         if (fonte && tipo === 'bot') {
             const fonteDiv = document.createElement('div');
             fonteDiv.style.fontSize = '0.65rem';
@@ -95,7 +94,11 @@
 
         let chat = document.getElementById("chat");
 
+        // 1. Adiciona a mensagem do Usuário
         chat.appendChild(criarMensagem(msg, 'user'));
+        
+        // 2. MOSTRAR STATUS "PENSANDO"
+        chat.appendChild(mostrarDigitando());
         chat.scrollTop = chat.scrollHeight;
 
         input.value = "";
@@ -110,11 +113,17 @@
         })
         .then(res => res.json())
         .then(data => {
-            // Repassa a fonte recebida do python para a interface
+            // 3. REMOVER STATUS "PENSANDO" ANTES DE RENDERIZAR A RESPOSTA
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+
             chat.appendChild(criarMensagem(data.resposta, 'bot', data.fonte));
             chat.scrollTop = chat.scrollHeight;
         })
         .catch(() => {
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+
             chat.appendChild(criarMensagem('Erro ao enviar mensagem', 'bot', 'Erro de Sistema'));
         })
         .finally(() => {
@@ -122,9 +131,7 @@
         });
     }
     
-    // Carregar saudação inicial e focar no input
     document.addEventListener('DOMContentLoaded', () => {
-        // Carregar saudação
         fetch("/saudacao")
             .then(res => res.json())
             .then(data => {

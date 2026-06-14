@@ -74,6 +74,7 @@ def buscar_jogo_api(nome):
             "nota": jogo_completo.get("rating"),
             "metacritic": jogo_completo.get("metacritic", "N/A"),
             "lancamento": jogo_completo.get("released", "Data desconhecida"),
+            "generos": [g["name"] for g in jogo_completo.get("genres", [])],
             "descricao": descricao,
             "plataformas": [p["platform"]["name"] for p in jogo_completo.get("platforms", [])],
             "match_exato": match_exato,

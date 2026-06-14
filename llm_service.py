@@ -24,7 +24,16 @@ except Exception as e:
     raise
 
 
-def responder_llm(pergunta, dados_jogo=None):
+def responder_llm(pergunta, dados_jogo=None, contexto_recomendacao="", historico=None):
+    if historico is None:
+        historico = []
+
+    regras_persona = f"""Você é Davy Jones, um guia carismático e especialista em jogos de terror.
+
+REGRAS CRÍTICAS DE CONVERSA:
+1. DESVIO DE ASSUNTO: Se o usuário perguntar sobre coisas NÃO relacionadas a jogos (ex: matemática, filmes de comédia, programação, etc.), responda normalmente e de forma útil. Porém, NO FINAL da sua resposta, você OBRIGATORIAMENTE deve adicionar uma frase puxando o assunto de volta para jogos de horror.
+2. RECOMENDAÇÃO INTELIGENTE: {contexto_recomendacao if contexto_recomendacao else "Se o usuário quiser dicas, recomende clássicos do terror."}
+3. CONVERSA FLUIDA: Analise o histórico da conversa e responda mantendo a coesão."""
 
     if dados_jogo:
         descricao = dados_jogo.get('descricao', 'Sem descrição disponível')
@@ -39,44 +48,41 @@ def responder_llm(pergunta, dados_jogo=None):
         alerta_prompt = ""
         alerta_user = ""
         
-        # O SEGREDO ESTÁ AQUI: Se o Python não achou o nome exato, nós damos uma bronca prévia na IA
         if not match_exato:
             alerta_prompt = f"""
 !!! ALERTA CRÍTICO DE CONTEXTO !!!
 O usuário perguntou sobre: '{termo_buscado}'
-Mas a busca oficial da API retornou os dados de outro jogo: '{nome_api}'.
-REGRA OBRIGATÓRIA: Você DEVE começar sua resposta explicando esse desencontro. 
-NÃO diga que '{termo_buscado}' foi lançado na data abaixo. Diga que '{nome_api}' foi lançado na data abaixo.
+Mas a busca oficial da API retornou: '{nome_api}'.
+REGRA: Comece a resposta explicando esse desencontro. Não misture as informações!
 """
-            alerta_user = f"\n\n[INSTRUÇÃO DO SISTEMA: Lembre-se, os dados abaixo são do jogo '{nome_api}' e NÃO de '{termo_buscado}'. Avise o usuário sobre essa troca feita pela busca!]"
+            alerta_user = f"\n\n[SISTEMA: Os dados abaixo são de '{nome_api}' e NÃO de '{termo_buscado}'. Avise o usuário!]"
 
-        system_prompt = f"""Você é Davy Jones, um especialista em games.
-Eu vou te fornecer um Documento de Banco de Dados Oficial retornado pela API RAWG.
+        system_prompt = f"""{regras_persona}
 
-REGRAS OBRIGATÓRIAS:
-1. USE SOMENTE OS DADOS DA API: Para notas, datas de lançamento e plataformas.
-2. TRADUÇÃO: A descrição abaixo está em inglês. Leia e explique de forma resumida em Português.
-3. SEJA HONESTO: Nunca invente datas ou notas.
-{alerta_prompt}
 [DOCUMENTO OFICIAL DA API RAWG]
-NOME DO JOGO NESTE DOCUMENTO: {nome_api}
+NOME DO JOGO: {nome_api}
 LANÇAMENTO: {dados_jogo.get('lancamento')}
-NOTA DOS JOGADORES: {dados_jogo.get('nota')}
-NOTA METACRITIC: {dados_jogo.get('metacritic')}
+NOTA: {dados_jogo.get('nota')}
+METACRITIC: {dados_jogo.get('metacritic')}
 PLATAFORMAS: {', '.join(dados_jogo.get('plataformas', []))}
 DESCRIÇÃO: {descricao}
-[FIM DO DOCUMENTO]"""
+[FIM DO DOCUMENTO]
+{alerta_prompt}"""
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Pergunta: {pergunta}{alerta_user}"}
-        ]
+        user_msg_final = f"Pergunta: {pergunta}{alerta_user}"
 
     else:
-        messages = [
-            {"role": "system", "content": "Você é Davy Jones, um especialista em jogos. Responda de forma natural e amigável usando seu próprio conhecimento."},
-            {"role": "user", "content": pergunta}
-        ]
+        system_prompt = regras_persona
+        user_msg_final = pergunta
+
+    # INJETANDO O HISTÓRICO NA MEMÓRIA DA IA
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    for turno in historico:
+        messages.append({"role": "user", "content": turno['user']})
+        messages.append({"role": "assistant", "content": turno['bot']})
+        
+    messages.append({"role": "user", "content": user_msg_final})
 
     text = tokenizer.apply_chat_template(
         messages,

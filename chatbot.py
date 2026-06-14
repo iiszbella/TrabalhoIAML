@@ -7,6 +7,8 @@ import re
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import RSLPStemmer
+
+from hooks import JOGOS, GENEROS, NOMES_ALT, SIM, NAO, CONVERSA_PROFUNDA
 from rawg_service import buscar_jogo_api
 from llm_service import responder_llm
 
@@ -58,13 +60,8 @@ def extrair_termo_busca(mensagem):
                 termo = match.group(1).strip()
                 return re.sub(r'[?!.,]', '', termo).strip()
                 
-    texto_limpo = re.sub(r'[^\w\s]', '', texto_lower).strip()
-    palavras_chat = {'sim', 'não', 'nao', 'oi', 'ola', 'olá', 'tchau', 'sair', 'beleza'}
-    if texto_limpo and texto_limpo not in palavras_chat:
-        qtd_palavras = len(texto_limpo.split())
-        if 1 < qtd_palavras <= 6:
-            return texto_limpo
-            
+    # O FALLBACK FOI REMOVIDO DAQUI! 
+    # Agora, se não for uma pergunta de jogo, ele não trava a API e responde na hora!
     return None
 
 def normalizar(texto):
@@ -114,22 +111,34 @@ class Memoria:
 memoria = Memoria()
 
 # ================================================================
-# RESPONDER PRINCIPAL
+# RESPONDER PRINCIPAL (Com Histórico Embutido)
 # ================================================================
 
 def responder(mensagem):
+    jogo_mencionado = detectar_jogo(mensagem)
+    if jogo_mencionado:
+        memoria.ultimo_jogo = jogo_mencionado
+        
+    contexto_recomendacao = ""
+    if memoria.ultimo_jogo and memoria.ultimo_jogo in JOGOS:
+        dados_memoria = JOGOS[memoria.ultimo_jogo]
+        similares = ", ".join([s.title() for s in dados_memoria['similares']])
+        contexto_recomendacao = f"O usuário demonstrou interesse no jogo '{memoria.ultimo_jogo.title()}' (Gênero: {dados_memoria['genero']}). Se ele pedir uma recomendação ou quiser trocar de assunto, você DEVE recomendar fortemente os seguintes jogos de estilo similar: {similares}."
+
+    # PEGA AS ÚLTIMAS 3 MENSAGENS PARA LEMBRAR DO CONTEXTO SEM TRAVAR A MEMÓRIA DO PC
+    historico_chat = memoria.historico[-3:] 
+
     termo_busca = extrair_termo_busca(mensagem)
-    logger.info("Termo extraído: %s", termo_busca)
     
     if termo_busca:
         dados_jogo = buscar_jogo_api(termo_busca)
-        logger.info("Dados RAWG retornados: %s", dados_jogo)
-
         if dados_jogo:
-            resposta = responder_llm(mensagem, dados_jogo)
+            resposta = responder_llm(mensagem, dados_jogo, contexto_recomendacao, historico_chat)
+            memoria.salvar(mensagem, resposta)
             return {"texto": resposta, "fonte": "API (RAWG) + LLM"}
 
-    resposta = responder_llm(mensagem)
+    resposta = responder_llm(mensagem, None, contexto_recomendacao, historico_chat)
+    memoria.salvar(mensagem, resposta)
     return {"texto": resposta, "fonte": "Memória Interna (Qwen LLM)"}
 
 def _processar_pendente(texto):
