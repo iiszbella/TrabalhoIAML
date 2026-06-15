@@ -3,146 +3,149 @@
 {% block title %}NightWare{% endblock %}
 
 {% block content %}
-
-<div class="chat-container" style="width: 100%; max-height: calc(100vh - 240px);">
+<div class="chat-container" style="width: 100%; max-height: calc(100vh - 240px); display: flex; flex-direction: column;">
     <div id="chat" role="log" aria-live="polite" aria-label="Histórico de conversa"></div>
-    
-    <div class="input-container">
-        <input 
-            type="text" 
-            id="mensagem" 
-            class="flex-grow-1"
-            placeholder="Digite sua mensagem..." 
-            onkeypress="if(event.key==='Enter' && !event.shiftKey) enviar()"
+
+    <div class="input-container" style="display: flex; gap: 8px; margin-top: 12px;">
+        <input
+            type="text"
+            id="mensagem"
+            placeholder="Digite sua mensagem..."
             aria-label="Campo de entrada de mensagem"
             autocomplete="off"
+            style="flex-grow: 1; padding: 8px;"
         >
-        <button 
-            class="btn-send" 
-            onclick="enviar()"
+        <button
+            class="btn-send"
             id="btnEnviar"
             aria-label="Enviar mensagem"
+            style="padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px;"
         >
             Enviar
         </button>
     </div>
 </div>
 
+<style>
+.message { margin: 8px 0; }
+.message-label { font-weight: bold; margin-bottom: 4px; }
+.message-bubble { background: var(--bubble-bg); padding: 8px; border-radius: 6px; }
+.typing-indicator { display: flex; gap: 4px; }
+.typing-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+.fonte { font-size: 0.65rem; color: var(--accent); margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 4px; text-align: right; font-style: italic; }
+</style>
+
 <script>
-    let enviando = false;
-    
-    function criarMensagem(texto, tipo, fonte = null) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${tipo}`;
-        
-        const labelDiv = document.createElement('div');
-        labelDiv.className = 'message-label';
-        labelDiv.textContent = tipo === 'user' ? 'Você' : '👻 Davy Jones';
-        
-        const bubbleDiv = document.createElement('div');
-        bubbleDiv.className = 'message-bubble';
-        bubbleDiv.innerHTML = texto.replace(/\n/g, '<br>');
-        bubbleDiv.setAttribute('role', 'article');
-        
-        if (fonte && tipo === 'bot') {
-            const fonteDiv = document.createElement('div');
-            fonteDiv.style.fontSize = '0.65rem';
-            fonteDiv.style.color = 'var(--accent)';
-            fonteDiv.style.marginTop = '8px';
-            fonteDiv.style.borderTop = '1px solid var(--border-color)';
-            fonteDiv.style.paddingTop = '4px';
-            fonteDiv.style.textAlign = 'right';
-            fonteDiv.style.fontStyle = 'italic';
-            fonteDiv.innerHTML = `Fonte: ${fonte}`;
-            bubbleDiv.appendChild(fonteDiv);
-        }
-        
-        messageDiv.appendChild(labelDiv);
-        messageDiv.appendChild(bubbleDiv);
-        
-        return messageDiv;
+let enviando = false;
+
+function sanitize(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function criarMensagem(texto, tipo, fonte = null) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${tipo}`;
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'message-label';
+    labelDiv.textContent = tipo === 'user' ? 'Você' : '👻 Davy Jones';
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'message-bubble';
+    bubbleDiv.innerHTML = sanitize(texto).replace(/\n/g, '<br>');
+    bubbleDiv.setAttribute('role', 'article');
+
+    if (fonte && tipo === 'bot') {
+        const fonteDiv = document.createElement('div');
+        fonteDiv.className = 'fonte';
+        fonteDiv.innerHTML = `Fonte: ${sanitize(fonte)}`;
+        bubbleDiv.appendChild(fonteDiv);
     }
-    
-    function mostrarDigitando() {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message bot';
-        messageDiv.id = 'typing-indicator';
-        
-        const labelDiv = document.createElement('div');
-        labelDiv.className = 'message-label';
-        labelDiv.textContent = '👻 Davy Jones';
-        
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'typing-indicator';
-        typingDiv.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
-        
-        messageDiv.appendChild(labelDiv);
-        messageDiv.appendChild(typingDiv);
-        
-        return messageDiv;
-    }
-    
-    function enviar() {
-        if (enviando) return;
 
-        let input = document.getElementById("mensagem");
-        let msg = input.value.trim();
+    messageDiv.appendChild(labelDiv);
+    messageDiv.appendChild(bubbleDiv);
 
-        if (!msg) return;
+    return messageDiv;
+}
 
-        enviando = true;
+function mostrarDigitando() {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot';
+    messageDiv.id = 'typing-indicator';
 
-        let chat = document.getElementById("chat");
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'message-label';
+    labelDiv.textContent = '👻 Davy Jones';
 
-        // 1. Adiciona a mensagem do Usuário
-        chat.appendChild(criarMensagem(msg, 'user'));
-        
-        // 2. MOSTRAR STATUS "PENSANDO"
-        chat.appendChild(mostrarDigitando());
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'typing-indicator';
+    typingDiv.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+
+    messageDiv.appendChild(labelDiv);
+    messageDiv.appendChild(typingDiv);
+
+    return messageDiv;
+}
+
+function enviar() {
+    if (enviando) return;
+
+    let input = document.getElementById("mensagem");
+    let msg = input.value.trim();
+
+    if (!msg) return;
+
+    enviando = true;
+    let chat = document.getElementById("chat");
+
+    chat.appendChild(criarMensagem(msg, 'user'));
+    chat.appendChild(mostrarDigitando());
+    chat.scrollTop = chat.scrollHeight;
+
+    input.value = "";
+    input.focus();
+
+    fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensagem: msg })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('typing-indicator')?.remove();
+        chat.appendChild(criarMensagem(data.resposta, 'bot', data.fonte));
         chat.scrollTop = chat.scrollHeight;
+    })
+    .catch(err => {
+        console.error("Erro:", err);
+        document.getElementById('typing-indicator')?.remove();
+        chat.appendChild(criarMensagem('Não consegui responder agora, tente novamente.', 'bot', 'Erro de Sistema'));
+    })
+    .finally(() => {
+        enviando = false;
+    });
+}
 
-        input.value = "";
-        input.focus();
-
-        fetch("/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({mensagem: msg})
-        })
+document.addEventListener('DOMContentLoaded', () => {
+    fetch("/saudacao")
         .then(res => res.json())
         .then(data => {
-            // 3. REMOVER STATUS "PENSANDO" ANTES DE RENDERIZAR A RESPOSTA
-            const typing = document.getElementById('typing-indicator');
-            if (typing) typing.remove();
-
-            chat.appendChild(criarMensagem(data.resposta, 'bot', data.fonte));
+            let chat = document.getElementById("chat");
+            chat.appendChild(criarMensagem(data.mensagem, 'bot', data.fonte));
             chat.scrollTop = chat.scrollHeight;
         })
-        .catch(() => {
-            const typing = document.getElementById('typing-indicator');
-            if (typing) typing.remove();
+        .catch(err => console.error("Erro ao carregar saudação:", err));
 
-            chat.appendChild(criarMensagem('Erro ao enviar mensagem', 'bot', 'Erro de Sistema'));
-        })
-        .finally(() => {
-            enviando = false;
-        });
-    }
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        fetch("/saudacao")
-            .then(res => res.json())
-            .then(data => {
-                let chat = document.getElementById("chat");
-                chat.appendChild(criarMensagem(data.mensagem, 'bot', data.fonte));
-                chat.scrollTop = chat.scrollHeight;
-            })
-            .catch(err => console.error("Erro ao carregar saudação:", err));
-        
-        document.getElementById("mensagem").focus();
+    document.getElementById("mensagem").focus();
+    document.getElementById("btnEnviar").addEventListener("click", enviar);
+    document.getElementById("mensagem").addEventListener("keypress", e => {
+        if ((e.key === 'Enter' && !e.shiftKey) || (e.ctrlKey && e.key === 'Enter')) {
+            enviar();
+        }
     });
+});
 </script>
-
 {% endblock %}
